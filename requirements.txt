@@ -1,0 +1,27 @@
+# Core Dependencies
+flask
+numpy
+scipy
+librosa
+soundfile
+pydub
+
+# Storage
+redis
+python-dotenv
+
+# Performance
+numba
+joblib
+
+# API
+flask-cors
+werkzeug
+
+# Testing (optional)
+pytest
+pytest-cov
+
+# Production
+gunicorn
+
