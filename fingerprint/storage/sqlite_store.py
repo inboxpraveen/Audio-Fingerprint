@@ -1,215 +1,239 @@
-"""SQLite storage backend."""
+"""SQLite storage backend — WAL mode, thread-local connections, batch queries."""
 
 import sqlite3
 import json
+import threading
 from .base import StorageBackend
 
 
 class SQLiteStore(StorageBackend):
-    """SQLite storage backend for persistent fingerprint database."""
-    
-    def __init__(self, db_path='fingerprint.db'):
-        """
-        Initialize SQLite store.
-        
-        Args:
-            db_path: Path to SQLite database file
-        """
-        self.db_path = db_path
-        self._init_database()
-    
-    def _init_database(self):
-        """Create database tables if they don't exist."""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        # Songs table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS songs (
-                song_id TEXT PRIMARY KEY,
-                title TEXT,
-                artist TEXT,
-                filepath TEXT,
-                duration REAL,
-                metadata TEXT
-            )
-        ''')
-        
-        # Fingerprints table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS fingerprints (
-                hash_value INTEGER,
-                song_id TEXT,
-                time_offset INTEGER,
-                FOREIGN KEY (song_id) REFERENCES songs(song_id)
-            )
-        ''')
-        
-        # Create index on hash_value for fast lookups
-        cursor.execute('''
-            CREATE INDEX IF NOT EXISTS idx_hash_value 
-            ON fingerprints(hash_value)
-        ''')
-        
-        conn.commit()
-        conn.close()
-    
-    def store_fingerprint(self, song_id, song_metadata, hashes):
-        """
-        Store fingerprint hashes for a song.
-        
-        Args:
-            song_id: Unique song identifier
-            song_metadata: Dictionary with song metadata
-            hashes: List of (hash_value, time_offset, song_id) tuples
-        """
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        # Store song metadata
-        cursor.execute('''
-            INSERT OR REPLACE INTO songs 
-            (song_id, title, artist, filepath, duration, metadata)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (
-            song_id,
-            song_metadata.get('title', ''),
-            song_metadata.get('artist', ''),
-            song_metadata.get('filepath', ''),
-            song_metadata.get('duration', 0.0),
-            json.dumps(song_metadata)
-        ))
-        
-        # Store fingerprints
-        fingerprint_data = [
-            (hash_value, song_id, time_offset)
-            for hash_value, time_offset, _ in hashes
-        ]
-        cursor.executemany('''
-            INSERT INTO fingerprints (hash_value, song_id, time_offset)
-            VALUES (?, ?, ?)
-        ''', fingerprint_data)
-        
-        conn.commit()
-        conn.close()
-    
-    def query_hash(self, hash_value):
-        """
-        Query database for a specific hash.
-        
-        Args:
-            hash_value: Hash integer to query
-        
-        Returns:
-            list: List of (song_id, time_offset) tuples
-        """
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT song_id, time_offset 
-            FROM fingerprints 
-            WHERE hash_value = ?
-        ''', (hash_value,))
-        
-        results = cursor.fetchall()
-        conn.close()
-        
-        return results
-    
-    def get_song_metadata(self, song_id):
-        """
-        Get metadata for a song.
-        
-        Args:
-            song_id: Song identifier
-        
-        Returns:
-            dict: Song metadata or None if not found
-        """
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT metadata FROM songs WHERE song_id = ?
-        ''', (song_id,))
-        
-        result = cursor.fetchone()
-        conn.close()
-        
-        if result:
-            return json.loads(result[0])
-        return None
-    
-    def get_all_songs(self):
-        """
-        Get list of all indexed songs.
-        
-        Returns:
-            list: List of song metadata dictionaries
-        """
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('SELECT metadata FROM songs')
-        results = cursor.fetchall()
-        conn.close()
-        
-        return [json.loads(row[0]) for row in results]
-    
-    def delete_song(self, song_id):
-        """
-        Delete a song and its fingerprints.
-        
-        Args:
-            song_id: Song identifier
-        """
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('DELETE FROM fingerprints WHERE song_id = ?', (song_id,))
-        cursor.execute('DELETE FROM songs WHERE song_id = ?', (song_id,))
-        
-        conn.commit()
-        conn.close()
-    
-    def get_stats(self):
-        """
-        Get database statistics.
-        
-        Returns:
-            dict: Statistics
-        """
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('SELECT COUNT(*) FROM songs')
-        total_songs = cursor.fetchone()[0]
-        
-        cursor.execute('SELECT COUNT(*) FROM fingerprints')
-        total_hashes = cursor.fetchone()[0]
-        
-        cursor.execute('SELECT COUNT(DISTINCT hash_value) FROM fingerprints')
-        unique_hashes = cursor.fetchone()[0]
-        
-        conn.close()
-        
-        return {
-            'total_songs': total_songs,
-            'total_hashes': total_hashes,
-            'unique_hashes': unique_hashes,
-            'storage_type': 'sqlite',
-            'db_path': self.db_path
-        }
-    
-    def clear(self):
-        """Clear all data from storage."""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('DELETE FROM fingerprints')
-        cursor.execute('DELETE FROM songs')
-        
-        conn.commit()
-        conn.close()
+    """
+    SQLite storage backend with:
+    - WAL journal mode for concurrent reads during writes
+    - Thread-local connections (one connection per thread, reused)
+    - Batch hash lookup (single SQL query vs N queries — huge speedup)
+    - Covering index on (hash_value, song_id, time_offset)
+    - Large in-memory page cache and mmap for fast reads
+    """
 
+    # SQLite variable limit is 999; keep chunks well below that
+    _CHUNK_SIZE = 900
+
+    def __init__(self, db_path: str = "fingerprint.db"):
+        self.db_path = db_path
+        self._local = threading.local()
+        self._init_database()
+
+    # ------------------------------------------------------------------
+    # Connection management
+    # ------------------------------------------------------------------
+
+    def _get_conn(self) -> sqlite3.Connection:
+        """Return (or create) a thread-local SQLite connection."""
+        conn = getattr(self._local, "conn", None)
+        if conn is None:
+            conn = sqlite3.connect(
+                self.db_path,
+                check_same_thread=False,
+                timeout=30,
+            )
+            # Performance tuning
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
+            conn.execute("PRAGMA cache_size=-65536")   # 64 MB page cache
+            conn.execute("PRAGMA temp_store=MEMORY")
+            conn.execute("PRAGMA mmap_size=268435456") # 256 MB memory-mapped I/O
+            conn.execute("PRAGMA page_size=4096")
+            self._local.conn = conn
+        return conn
+
+    # ------------------------------------------------------------------
+    # Schema setup
+    # ------------------------------------------------------------------
+
+    def _init_database(self):
+        """Create tables and indices if they do not exist."""
+        conn = self._get_conn()
+        cur = conn.cursor()
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS songs (
+                song_id   TEXT PRIMARY KEY,
+                title     TEXT,
+                artist    TEXT,
+                filepath  TEXT,
+                duration  REAL,
+                metadata  TEXT,
+                indexed_at REAL DEFAULT (strftime('%s', 'now'))
+            )
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS fingerprints (
+                hash_value  INTEGER NOT NULL,
+                song_id     TEXT    NOT NULL,
+                time_offset INTEGER NOT NULL
+            )
+        """)
+
+        # Primary lookup index
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_hash
+            ON fingerprints (hash_value)
+        """)
+
+        # Covering index so lookups never touch the table heap
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_hash_cover
+            ON fingerprints (hash_value, song_id, time_offset)
+        """)
+
+        conn.commit()
+
+    # ------------------------------------------------------------------
+    # Write
+    # ------------------------------------------------------------------
+
+    def store_fingerprint(self, song_id: str, song_metadata: dict, hashes: list):
+        """
+        Persist a song and all of its fingerprint hashes.
+
+        hashes: list of (hash_value, time_offset, song_id) tuples
+        """
+        conn = self._get_conn()
+        cur = conn.cursor()
+
+        cur.execute(
+            """
+            INSERT OR REPLACE INTO songs
+                (song_id, title, artist, filepath, duration, metadata)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                song_id,
+                song_metadata.get("title", ""),
+                song_metadata.get("artist", ""),
+                song_metadata.get("filepath", ""),
+                song_metadata.get("duration", 0.0),
+                json.dumps(song_metadata),
+            ),
+        )
+
+        cur.executemany(
+            "INSERT INTO fingerprints (hash_value, song_id, time_offset) VALUES (?, ?, ?)",
+            [(hv, song_id, t_off) for hv, t_off, _ in hashes],
+        )
+
+        conn.commit()
+
+    # ------------------------------------------------------------------
+    # Read — single hash (kept for compatibility with base interface)
+    # ------------------------------------------------------------------
+
+    def query_hash(self, hash_value: int) -> list:
+        cur = self._get_conn().cursor()
+        cur.execute(
+            "SELECT song_id, time_offset FROM fingerprints WHERE hash_value = ?",
+            (hash_value,),
+        )
+        return cur.fetchall()
+
+    # ------------------------------------------------------------------
+    # Read — batch hash lookup (primary search path)
+    # ------------------------------------------------------------------
+
+    def query_hashes_batch(self, hash_values: list) -> list:
+        """
+        Look up all hashes in a single round-trip (chunked to respect
+        SQLite's per-query variable limit of 999).
+
+        Returns: list of (hash_value, song_id, time_offset)
+        """
+        if not hash_values:
+            return []
+
+        conn = self._get_conn()
+        cur = conn.cursor()
+        results = []
+
+        for i in range(0, len(hash_values), self._CHUNK_SIZE):
+            chunk = hash_values[i : i + self._CHUNK_SIZE]
+            placeholders = ",".join("?" * len(chunk))
+            cur.execute(
+                f"SELECT hash_value, song_id, time_offset "
+                f"FROM fingerprints WHERE hash_value IN ({placeholders})",
+                chunk,
+            )
+            results.extend(cur.fetchall())
+
+        return results
+
+    # ------------------------------------------------------------------
+    # Song metadata
+    # ------------------------------------------------------------------
+
+    def get_song_metadata(self, song_id: str):
+        cur = self._get_conn().cursor()
+        cur.execute("SELECT metadata FROM songs WHERE song_id = ?", (song_id,))
+        row = cur.fetchone()
+        return json.loads(row[0]) if row else None
+
+    def get_all_songs(self) -> list:
+        cur = self._get_conn().cursor()
+        cur.execute("SELECT metadata FROM songs ORDER BY indexed_at DESC")
+        return [json.loads(row[0]) for row in cur.fetchall()]
+
+    def song_exists(self, filepath: str) -> bool:
+        """Return True if a song with this filepath is already indexed."""
+        cur = self._get_conn().cursor()
+        cur.execute("SELECT 1 FROM songs WHERE filepath = ? LIMIT 1", (filepath,))
+        return cur.fetchone() is not None
+
+    # ------------------------------------------------------------------
+    # Delete
+    # ------------------------------------------------------------------
+
+    def delete_song(self, song_id: str):
+        conn = self._get_conn()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM fingerprints WHERE song_id = ?", (song_id,))
+        cur.execute("DELETE FROM songs WHERE song_id = ?", (song_id,))
+        conn.commit()
+
+    # ------------------------------------------------------------------
+    # Stats & maintenance
+    # ------------------------------------------------------------------
+
+    def get_stats(self) -> dict:
+        cur = self._get_conn().cursor()
+
+        cur.execute("SELECT COUNT(*) FROM songs")
+        total_songs = cur.fetchone()[0]
+
+        cur.execute("SELECT COUNT(*) FROM fingerprints")
+        total_hashes = cur.fetchone()[0]
+
+        cur.execute("SELECT COUNT(DISTINCT hash_value) FROM fingerprints")
+        unique_hashes = cur.fetchone()[0]
+
+        return {
+            "total_songs": total_songs,
+            "total_hashes": total_hashes,
+            "unique_hashes": unique_hashes,
+            "storage_type": "sqlite",
+            "db_path": self.db_path,
+        }
+
+    def clear(self):
+        conn = self._get_conn()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM fingerprints")
+        cur.execute("DELETE FROM songs")
+        conn.commit()
+
+    def close(self):
+        """Close the current thread's connection (useful in tests / shutdown)."""
+        conn = getattr(self._local, "conn", None)
+        if conn is not None:
+            conn.close()
+            self._local.conn = None

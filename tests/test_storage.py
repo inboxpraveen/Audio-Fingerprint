@@ -111,7 +111,7 @@ class TestSQLiteStore(unittest.TestCase):
     
     def tearDown(self):
         """Clean up test fixtures."""
-        # Delete temporary database
+        self.storage.close()
         if os.path.exists(self.temp_db.name):
             os.unlink(self.temp_db.name)
     
@@ -149,11 +149,12 @@ class TestSQLiteStore(unittest.TestCase):
         
         # Create new instance with same database
         storage2 = SQLiteStore(self.temp_db.name)
-        
-        # Retrieve from second instance
-        metadata = storage2.get_song_metadata(song_id)
-        self.assertIsNotNone(metadata)
-        self.assertEqual(metadata['title'], 'Persistent Song')
+        try:
+            metadata = storage2.get_song_metadata(song_id)
+            self.assertIsNotNone(metadata)
+            self.assertEqual(metadata['title'], 'Persistent Song')
+        finally:
+            storage2.close()
 
 
 if __name__ == '__main__':

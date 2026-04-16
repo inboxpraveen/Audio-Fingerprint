@@ -56,8 +56,8 @@ class TestMatcher(unittest.TestCase):
         
         # Best match should be song1
         best_match = matches[0]
-        song_id, confidence, metadata = best_match
-        
+        song_id, confidence, metadata, match_offset = best_match
+
         self.assertEqual(song_id, 'song1')
         self.assertGreater(confidence, 0.5, "Confidence should be high")
     

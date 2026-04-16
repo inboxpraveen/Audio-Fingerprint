@@ -38,14 +38,19 @@ class MemoryStore(StorageBackend):
     def query_hash(self, hash_value):
         """
         Query database for a specific hash.
-        
-        Args:
-            hash_value: Hash integer to query
-        
+
         Returns:
             list: List of (song_id, time_offset) tuples
         """
         return self.hash_table.get(hash_value, [])
+
+    def query_hashes_batch(self, hash_values: list) -> list:
+        """Batch lookup — much faster than calling query_hash N times."""
+        results = []
+        for hv in hash_values:
+            for song_id, time_offset in self.hash_table.get(hv, []):
+                results.append((hv, song_id, time_offset))
+        return results
     
     def get_song_metadata(self, song_id):
         """

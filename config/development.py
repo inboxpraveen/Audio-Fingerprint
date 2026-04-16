@@ -4,20 +4,18 @@ from .default import Config
 
 
 class DevelopmentConfig(Config):
-    """Development configuration."""
-    
+    """Development — SQLite persistence so the library survives restarts."""
+
     DEBUG = True
     TESTING = False
-    
-    # Storage
-    STORAGE_TYPE = 'memory'
-    SQLITE_DATABASE_PATH = './data/database/fingerprint_dev.db'
-    
-    # Logging
-    LOG_LEVEL = 'DEBUG'
-    LOG_FILE = './data/logs/development.log'
-    
-    # API
-    FLASK_ENV = 'development'
-    CORS_ORIGINS = '*'
 
+    # Persistent SQLite database
+    STORAGE_TYPE = "sqlite"
+    SQLITE_DATABASE_PATH = "data/fingerprint_dev.db"
+    UPLOAD_FOLDER = "data/uploads"
+
+    LOG_LEVEL = "DEBUG"
+    LOG_FILE = "data/logs/development.log"
+
+    FLASK_ENV = "development"
+    CORS_ORIGINS = "*"

@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AudioFP — Audio Intelligence Platform</title>
+  <style>
+    /* ------------------------------------------------------------------ */
+    /* Reset & tokens                                                       */
+    /* ------------------------------------------------------------------ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0d0d13;
+      --bg2:         #12121a;
+      --surface:     #1a1a26;
+      --surface2:    #22222e;
+      --border:      #2a2a3c;
+      --border2:     #36365040;
+      --text:        #e2e8f0;
+      --text2:       #94a3b8;
+      --muted:       #475569;
+      --accent:      #7c3aed;
+      --accent2:     #a78bfa;
+      --accent-bg:   rgba(124,58,237,.13);
+      --accent-glow: rgba(124,58,237,.25);
+      --green:       #10b981;
+      --green-bg:    rgba(16,185,129,.12);
+      --red:         #ef4444;
+      --red-bg:      rgba(239,68,68,.12);
+      --yellow:      #f59e0b;
+      --r:           12px;
+      --r-sm:        8px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    html, body { height: 100%; }
+    body { background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.5; }
+
+    /* ------------------------------------------------------------------ */
+    /* Navigation                                                           */
+    /* ------------------------------------------------------------------ */
+    .nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 28px; height: 62px;
+      background: rgba(18,18,26,.92);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(16px);
+    }
+
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 17px; font-weight: 700; letter-spacing: -.2px;
+      color: var(--text); text-decoration: none; flex-shrink: 0;
+    }
+    .nav-logo-icon {
+      width: 32px; height: 32px; border-radius: 9px;
+      background: var(--accent-bg); border: 1px solid var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent2);
+    }
+
+    .nav-tabs { display: flex; gap: 2px; margin: 0 auto; }
+
+    .nav-tab {
+      padding: 7px 18px; border-radius: var(--r-sm);
+      border: none; cursor: pointer; font-size: 13.5px; font-weight: 500;
+      background: transparent; color: var(--text2); transition: all .15s;
+    }
+    .nav-tab:hover  { background: var(--surface); color: var(--text); }
+    .nav-tab.active { background: var(--accent-bg); color: var(--accent2); }
+
+    .nav-status {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; color: var(--text2); flex-shrink: 0;
+    }
+    .status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--green); box-shadow: 0 0 8px var(--green);
+      flex-shrink: 0;
+    }
+    .status-dot.warn { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+    .status-dot.error { background: var(--red); box-shadow: 0 0 8px var(--red); }
+
+    /* ------------------------------------------------------------------ */
+    /* Layout                                                               */
+    /* ------------------------------------------------------------------ */
+    .main { max-width: 900px; margin: 0 auto; padding: 44px 28px 80px; }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    .view-header { margin-bottom: 32px; }
+    .view-header h1 { font-size: 26px; font-weight: 700; margin-bottom: 5px; }
+    .view-header p  { font-size: 14px; color: var(--text2); }
+
+    /* ------------------------------------------------------------------ */
+    /* Drop zone                                                            */
+    /* ------------------------------------------------------------------ */
+    .drop-zone {
+      position: relative; border: 2px dashed var(--border2);
+      border-radius: var(--r); padding: 44px 24px;
+      text-align: center; cursor: pointer;
+      transition: all .2s; background: var(--surface);
+      overflow: hidden;
+    }
+    .drop-zone::before {
+      content: ''; position: absolute; inset: 0; opacity: 0;
+      background: radial-gradient(ellipse at 50% 0%, var(--accent-glow), transparent 70%);
+      transition: opacity .3s;
+    }
+    .drop-zone:hover::before, .drop-zone.hover::before { opacity: 1; }
+    .drop-zone:hover, .drop-zone.hover {
+      border-color: var(--accent); border-style: solid;
+    }
+    .drop-zone input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+      width: 100%; height: 100%;
+    }
+
+    .dz-icon {
+      width: 52px; height: 52px; margin: 0 auto 18px;
+      background: var(--accent-bg); border-radius: 14px;
+      border: 1px solid var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent2);
+    }
+    .drop-zone h3 { font-size: 15px; font-weight: 600; margin-bottom: 5px; }
+    .drop-zone p  { font-size: 13px; color: var(--text2); }
+    .drop-zone .hint { margin-top: 10px; font-size: 11.5px; color: var(--muted);
+      letter-spacing: .3px; text-transform: uppercase; }
+
+    /* ------------------------------------------------------------------ */
+    /* File preview bar                                                     */
+    /* ------------------------------------------------------------------ */
+    .file-bar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px; margin-top: 14px;
+      background: var(--surface); border-radius: var(--r-sm);
+      border: 1px solid var(--border);
+    }
+    .file-bar-icon {
+      width: 36px; height: 36px; border-radius: 9px; flex-shrink: 0;
+      background: var(--accent-bg); border: 1px solid var(--accent);
+      display: flex; align-items: center; justify-content: center; color: var(--accent2);
+    }
+    .file-bar-info { flex: 1; min-width: 0; }
+    .file-bar-name {
+      font-size: 13.5px; font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .file-bar-size { font-size: 11.5px; color: var(--text2); margin-top: 1px; }
+    .icon-btn {
+      width: 30px; height: 30px; border-radius: var(--r-sm);
+      border: none; cursor: pointer; font-size: 16px; line-height: 1;
+      background: transparent; color: var(--muted); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; transition: all .15s;
+    }
+    .icon-btn:hover { background: var(--red-bg); color: var(--red); }
+
+    /* ------------------------------------------------------------------ */
+    /* Buttons                                                              */
+    /* ------------------------------------------------------------------ */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 22px; border-radius: var(--r-sm);
+      border: none; cursor: pointer; font-size: 14px; font-weight: 600;
+      transition: all .15s; text-decoration: none; white-space: nowrap;
+    }
+    .btn-primary {
+      background: var(--accent); color: #fff;
+      box-shadow: 0 0 24px var(--accent-glow);
+    }
+    .btn-primary:hover:not(:disabled) { background: #6d28d9; box-shadow: 0 0 32px var(--accent-glow); }
+    .btn-primary:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+    .btn-full { width: 100%; justify-content: center; margin-top: 14px; }
+
+    .btn-ghost {
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text2); font-size: 13px; padding: 7px 14px;
+    }
+    .btn-ghost:hover { color: var(--text); border-color: var(--border2); }
+
+    /* ------------------------------------------------------------------ */
+    /* Search results                                                       */
+    /* ------------------------------------------------------------------ */
+    .results-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin: 32px 0 16px;
+    }
+    .results-bar h2 { font-size: 17px; font-weight: 600; }
+    .results-meta   { font-size: 12.5px; color: var(--text2); }
+
+    .result-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 20px 22px; margin-bottom: 10px;
+      transition: border-color .15s;
+    }
+    .result-card:hover  { border-color: var(--border2); }
+    .result-card.best   { border-color: var(--accent); }
+
+    .result-row {
+      display: flex; align-items: flex-start;
+      justify-content: space-between; gap: 16px; margin-bottom: 14px;
+    }
+    .result-title  { font-size: 15.5px; font-weight: 600; margin-bottom: 3px; }
+    .result-artist { font-size: 12.5px; color: var(--text2); }
+
+    .result-score       { text-align: right; flex-shrink: 0; }
+    .score-pct          { font-size: 24px; font-weight: 700; color: var(--accent2); line-height: 1; }
+    .score-label        { font-size: 10.5px; color: var(--muted); margin-top: 2px;
+                          text-transform: uppercase; letter-spacing: .5px; }
+
+    .conf-track { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 14px; }
+    .conf-fill  {
+      height: 100%; border-radius: 2px;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%);
+      transition: width .5s cubic-bezier(.4,0,.2,1);
+    }
+
+    .tags { display: flex; gap: 10px; flex-wrap: wrap; }
+    .tag  {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11.5px; color: var(--text2);
+    }
+    .tag svg { color: var(--accent2); flex-shrink: 0; }
+
+    .no-results {
+      text-align: center; padding: 52px 24px;
+      background: var(--surface); border-radius: var(--r);
+      border: 1px dashed var(--border2); margin-top: 24px;
+    }
+    .no-results h3 { font-size: 16px; margin-bottom: 8px; }
+    .no-results p  { font-size: 13.5px; color: var(--text2); }
+
+    /* ------------------------------------------------------------------ */
+    /* Library                                                              */
+    /* ------------------------------------------------------------------ */
+    .dir-row {
+      display: flex; gap: 10px; margin-top: 18px;
+    }
+    .text-input {
+      flex: 1; padding: 9px 14px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: var(--r-sm);
+      color: var(--text); font-size: 13.5px; outline: none; transition: border-color .15s;
+    }
+    .text-input::placeholder { color: var(--muted); }
+    .text-input:focus { border-color: var(--accent); }
+
+    .lib-toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin: 28px 0 14px;
+    }
+    .lib-count { font-size: 13.5px; color: var(--text2); }
+
+    .job-list { margin-top: 20px; display: flex; flex-direction: column; gap: 8px; }
+
+    .job-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r-sm); padding: 14px 16px;
+    }
+    .job-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
+    .job-name   { font-size: 13.5px; font-weight: 500; }
+    .job-status { font-size: 12px; font-weight: 500; }
+    .job-status.running   { color: var(--accent2); }
+    .job-status.completed { color: var(--green); }
+    .job-status.failed    { color: var(--red); }
+    .job-status.pending   { color: var(--muted); }
+
+    .progress-track { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .progress-fill  {
+      height: 100%; border-radius: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width .3s;
+    }
+    .progress-fill.done  { background: var(--green); }
+    .progress-fill.error { background: var(--red); }
+    .job-sub { font-size: 11.5px; color: var(--text2); margin-top: 6px; }
+
+    .songs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+      gap: 10px;
+    }
+
+    .song-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 16px;
+      display: flex; flex-direction: column; gap: 11px;
+      transition: border-color .15s;
+    }
+    .song-card:hover { border-color: var(--border2); }
+
+    .song-card-top {
+      display: flex; align-items: flex-start;
+      justify-content: space-between; gap: 8px;
+    }
+    .song-title  { font-size: 13.5px; font-weight: 600; line-height: 1.35; word-break: break-word; }
+    .song-artist { font-size: 11.5px; color: var(--text2); margin-top: 2px; }
+    .song-meta   { display: flex; flex-wrap: wrap; gap: 6px; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 8px; border-radius: 5px; font-size: 11px;
+      background: var(--bg2); color: var(--text2); border: 1px solid var(--border);
+    }
+
+    .del-btn {
+      width: 26px; height: 26px; flex-shrink: 0; border-radius: 6px;
+      border: 1px solid var(--border); cursor: pointer;
+      background: transparent; color: var(--muted);
+      display: flex; align-items: center; justify-content: center;
+      transition: all .15s; font-size: 13px;
+    }
+    .del-btn:hover { background: var(--red-bg); color: var(--red); border-color: var(--red); }
+
+    .empty-state {
+      grid-column: 1 / -1; text-align: center;
+      padding: 52px 24px; background: var(--surface);
+      border-radius: var(--r); border: 1px dashed var(--border2);
+    }
+    .empty-state h3 { font-size: 16px; margin-bottom: 8px; }
+    .empty-state p  { font-size: 13.5px; color: var(--text2); }
+
+    /* ------------------------------------------------------------------ */
+    /* Stats                                                                */
+    /* ------------------------------------------------------------------ */
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 14px; margin-bottom: 32px;
+    }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 22px;
+    }
+    .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase;
+                  letter-spacing: .6px; margin-bottom: 10px; }
+    .stat-value { font-size: 30px; font-weight: 700; }
+    .stat-sub   { font-size: 11.5px; color: var(--text2); margin-top: 5px; }
+
+    /* ------------------------------------------------------------------ */
+    /* Toast notifications                                                  */
+    /* ------------------------------------------------------------------ */
+    .toast-wrap {
+      position: fixed; bottom: 24px; right: 24px;
+      display: flex; flex-direction: column; gap: 8px;
+      z-index: 999; pointer-events: none;
+    }
+    .toast {
+      padding: 11px 16px; border-radius: var(--r-sm);
+      font-size: 13.5px; font-weight: 500;
+      display: flex; align-items: center; gap: 10px;
+      min-width: 250px; max-width: 360px; pointer-events: auto;
+      animation: slide-in .2s ease;
+    }
+    .toast.ok   { background: var(--green-bg); color: var(--green); border: 1px solid var(--green); }
+    .toast.err  { background: var(--red-bg);   color: var(--red);   border: 1px solid var(--red); }
+    .toast.info { background: var(--accent-bg);color: var(--accent2);border: 1px solid var(--accent); }
+    @keyframes slide-in { from { transform: translateX(110%); opacity: 0; } to { transform: none; opacity: 1; } }
+
+    /* ------------------------------------------------------------------ */
+    /* Misc utilities                                                       */
+    /* ------------------------------------------------------------------ */
+    .spinner {
+      width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+      border: 2px solid rgba(255,255,255,.25); border-top-color: #fff;
+      animation: spin .55s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .hidden { display: none !important; }
+    .mt-4 { margin-top: 16px; }
+    .mt-6 { margin-top: 24px; }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .main { padding: 28px 16px 64px; }
+      .nav  { padding: 0 16px; }
+      .songs-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ================================================================== -->
+<!-- Navigation                                                          -->
+<!-- ================================================================== -->
+<nav class="nav">
+  <div class="nav-logo">
+    <div class="nav-logo-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M9 18V5l12-2v13"/>
+        <circle cx="6" cy="18" r="3"/>
+        <circle cx="18" cy="16" r="3"/>
+      </svg>
+    </div>
+    AudioFP
+  </div>
+
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-tab="search">Search</button>
+    <button class="nav-tab" data-tab="library">Library</button>
+    <button class="nav-tab" data-tab="stats">Stats</button>
+  </div>
+
+  <div class="nav-status">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">Loading…</span>
+  </div>
+</nav>
+
+<!-- ================================================================== -->
+<!-- Main content                                                        -->
+<!-- ================================================================== -->
+<main class="main">
+
+  <!-- ============================================================== -->
+  <!-- SEARCH VIEW                                                     -->
+  <!-- ============================================================== -->
+  <div id="view-search" class="view active">
+    <div class="view-header">
+      <h1>Find Audio</h1>
+      <p>Drop a short clip (3–30 s) to instantly search your knowledge base</p>
+    </div>
+
+    <div class="drop-zone" id="search-zone">
+      <input type="file" id="search-input" accept="audio/*" />
+      <div class="dz-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+      </div>
+      <h3>Drop audio clip here</h3>
+      <p>or click to browse your files</p>
+      <p class="hint">MP3 · WAV · FLAC · M4A · OGG · AAC</p>
+    </div>
+
+    <div id="search-bar" class="hidden">
+      <div class="file-bar">
+        <div class="file-bar-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M9 18V5l12-2v13"/>
+            <circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+          </svg>
+        </div>
+        <div class="file-bar-info">
+          <div class="file-bar-name" id="search-fname"></div>
+          <div class="file-bar-size" id="search-fsize"></div>
+        </div>
+        <button class="icon-btn" id="search-clear">×</button>
+      </div>
+      <button class="btn btn-primary btn-full" id="search-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        Search Library
+      </button>
+    </div>
+
+    <div id="search-results"></div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- LIBRARY VIEW                                                    -->
+  <!-- ============================================================== -->
+  <div id="view-library" class="view">
+    <div class="view-header">
+      <h1>Knowledge Base</h1>
+      <p>Upload individual files or index an entire folder to build your library</p>
+    </div>
+
+    <!-- File upload drop zone -->
+    <div class="drop-zone" id="lib-zone">
+      <input type="file" id="lib-input" accept="audio/*" multiple />
+      <div class="dz-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      </div>
+      <h3>Upload audio files</h3>
+      <p>Drop files here or click to browse — multiple files supported</p>
+      <p class="hint">MP3 · WAV · FLAC · M4A · OGG · AAC</p>
+    </div>
+
+    <!-- Directory indexing -->
+    <div class="dir-row">
+      <input class="text-input" id="dir-input"
+             placeholder="Or enter a folder path to index all audio inside it…" />
+      <button class="btn btn-primary" id="dir-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+        Index Folder
+      </button>
+    </div>
+
+    <!-- Active jobs -->
+    <div class="job-list" id="job-list"></div>
+
+    <!-- Toolbar -->
+    <div class="lib-toolbar mt-6">
+      <span class="lib-count" id="lib-count">Loading…</span>
+      <button class="btn btn-ghost" onclick="loadLibrary()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.5">
+          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+          <path d="M21 3v5h-5"/>
+          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+          <path d="M8 16H3v5"/>
+        </svg>
+        Refresh
+      </button>
+    </div>
+
+    <div class="songs-grid" id="songs-grid"></div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- STATS VIEW                                                      -->
+  <!-- ============================================================== -->
+  <div id="view-stats" class="view">
+    <div class="view-header">
+      <h1>Statistics</h1>
+      <p>Live metrics for your audio knowledge base</p>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Songs</div>
+        <div class="stat-value" id="st-songs">—</div>
+        <div class="stat-sub">Indexed audio files</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Fingerprints</div>
+        <div class="stat-value" id="st-hashes">—</div>
+        <div class="stat-sub">Total hash entries</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Unique Hashes</div>
+        <div class="stat-value" id="st-unique">—</div>
+        <div class="stat-sub">Distinct patterns</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Storage</div>
+        <div class="stat-value" id="st-type">—</div>
+        <div class="stat-sub" id="st-path">Backend</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div class="toast-wrap" id="toasts"></div>
+
+<!-- ================================================================== -->
+<!-- JavaScript                                                          -->
+<!-- ================================================================== -->
+<script>
+'use strict';
+
+/* -------------------------------------------------------------------- */
+/* API helper                                                            */
+/* -------------------------------------------------------------------- */
+const BASE = '/api/v1';
+
+async function api(path, opts = {}) {
+  const r = await fetch(BASE + path, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+  return data;
+}
+
+/* -------------------------------------------------------------------- */
+/* Toasts                                                                */
+/* -------------------------------------------------------------------- */
+function toast(msg, type = 'info', dur = 4500) {
+  const icons = { ok: '✓', err: '✕', info: 'ℹ' };
+  const el = Object.assign(document.createElement('div'), {
+    className: `toast ${type}`,
+    innerHTML: `<span style="font-size:15px;flex-shrink:0">${icons[type]||'ℹ'}</span><span>${msg}</span>`
+  });
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), dur);
+}
+
+/* -------------------------------------------------------------------- */
+/* Navigation                                                            */
+/* -------------------------------------------------------------------- */
+function showTab(name) {
+  document.querySelectorAll('.nav-tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.view').forEach(v =>
+    v.classList.toggle('active', v.id === 'view-' + name));
+  if (name === 'library') loadLibrary();
+  if (name === 'stats')   loadStats();
+}
+document.querySelectorAll('.nav-tab').forEach(b =>
+  b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+/* -------------------------------------------------------------------- */
+/* Drag-and-drop helper                                                  */
+/* -------------------------------------------------------------------- */
+function initDropZone(zoneId, inputId, onFiles) {
+  const zone  = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+
+  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('hover'); });
+  zone.addEventListener('dragleave', ()  => zone.classList.remove('hover'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('hover');
+    const files = [...e.dataTransfer.files].filter(isAudio);
+    if (files.length) onFiles(files);
+  });
+  input.addEventListener('change', () => {
+    if (input.files.length) { onFiles([...input.files]); input.value = ''; }
+  });
+}
+
+function isAudio(f) {
+  return f.type.startsWith('audio/') || /\.(mp3|wav|flac|m4a|ogg|aac|wma|opus)$/i.test(f.name);
+}
+
+/* -------------------------------------------------------------------- */
+/* Format helpers                                                        */
+/* -------------------------------------------------------------------- */
+function fmtSize(b) {
+  if (b < 1024)          return b + ' B';
+  if (b < 1024 * 1024)   return (b / 1024).toFixed(1) + ' KB';
+  return (b / (1024 * 1024)).toFixed(1) + ' MB';
+}
+function fmtDur(s) {
+  if (!s && s !== 0) return '—';
+  const m = Math.floor(s / 60), ss = Math.floor(s % 60);
+  return `${m}:${String(ss).padStart(2,'0')}`;
+}
+function fmtNum(n) {
+  if (n == null) return '—';
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return String(n);
+}
+function pct(v) { return Math.round(v * 100); }
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                  .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function ext(name) { return (name || '').split('.').pop().toUpperCase(); }
+
+/* -------------------------------------------------------------------- */
+/* SEARCH                                                                */
+/* -------------------------------------------------------------------- */
+let searchFile = null;
+
+initDropZone('search-zone', 'search-input', files => setSearchFile(files[0]));
+
+function setSearchFile(f) {
+  searchFile = f;
+  document.getElementById('search-fname').textContent = f.name;
+  document.getElementById('search-fsize').textContent = fmtSize(f.size);
+  document.getElementById('search-bar').classList.remove('hidden');
+  document.getElementById('search-results').innerHTML = '';
+}
+
+document.getElementById('search-clear').addEventListener('click', () => {
+  searchFile = null;
+  document.getElementById('search-bar').classList.add('hidden');
+  document.getElementById('search-results').innerHTML = '';
+});
+
+document.getElementById('search-btn').addEventListener('click', async () => {
+  if (!searchFile) return;
+  const btn = document.getElementById('search-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Searching…';
+  document.getElementById('search-results').innerHTML = '';
+
+  try {
+    const fd = new FormData();
+    fd.append('audio', searchFile);
+    const data = await api('/search', { method: 'POST', body: fd });
+    renderResults(data);
+  } catch (e) {
+    toast('Search failed: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML =
+      `<svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+         <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+       </svg> Search Library`;
+  }
+});
+
+function renderResults(data) {
+  const el = document.getElementById('search-results');
+
+  if (!data.found) {
+    el.innerHTML = `
+      <div class="no-results">
+        <h3>No matches found</h3>
+        <p>Try a longer clip, reduce background noise, or add more files to the library.</p>
+      </div>`;
+    return;
+  }
+
+  let html = `
+    <div class="results-bar">
+      <h2>${data.matches.length} match${data.matches.length > 1 ? 'es' : ''} found</h2>
+      <span class="results-meta">
+        ${data.query_duration_sec}s clip &nbsp;·&nbsp; ${data.processing_time_ms.toFixed(0)} ms
+      </span>
+    </div>`;
+
+  data.matches.forEach((m, i) => {
+    const p      = pct(m.confidence);
+    const title  = esc(m.title || m.filename || 'Unknown');
+    const artist = esc(m.artist || '');
+
+    html += `
+    <div class="result-card ${i === 0 ? 'best' : ''}">
+      <div class="result-row">
+        <div>
+          <div class="result-title">${title}</div>
+          ${artist ? `<div class="result-artist">${artist}</div>` : ''}
+        </div>
+        <div class="result-score">
+          <div class="score-pct">${p}%</div>
+          <div class="score-label">Confidence</div>
+        </div>
+      </div>
+      <div class="conf-track">
+        <div class="conf-fill" style="width:${Math.min(p,100)}%"></div>
+      </div>
+      <div class="tags">
+        ${m.match_offset_sec != null ? `
+        <span class="tag">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          Match at ${m.match_offset_sec}s
+        </span>` : ''}
+        ${m.duration ? `
+        <span class="tag">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+          ${fmtDur(m.duration)}
+        </span>` : ''}
+        ${m.num_hashes ? `
+        <span class="tag">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2">
+            <line x1="4" y1="9" x2="20" y2="9"/>
+            <line x1="4" y1="15" x2="20" y2="15"/>
+            <line x1="10" y1="3" x2="8" y2="21"/>
+            <line x1="16" y1="3" x2="14" y2="21"/>
+          </svg>
+          ${fmtNum(m.num_hashes)} prints
+        </span>` : ''}
+        ${m.filename ? `
+        <span class="tag">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2">
+            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+            <polyline points="13 2 13 9 20 9"/>
+          </svg>
+          ${esc(ext(m.filename))}
+        </span>` : ''}
+      </div>
+    </div>`;
+  });
+
+  el.innerHTML = html;
+}
+
+/* -------------------------------------------------------------------- */
+/* LIBRARY                                                               */
+/* -------------------------------------------------------------------- */
+initDropZone('lib-zone', 'lib-input', files => files.forEach(uploadFile));
+
+document.getElementById('dir-btn').addEventListener('click', () => {
+  const path = document.getElementById('dir-input').value.trim();
+  if (!path) { toast('Please enter a folder path', 'info'); return; }
+  indexDirectory(path);
+});
+
+const activeJobs = {};
+
+/* Upload single file */
+async function uploadFile(file) {
+  const jobEl = addJobCard(file.name);
+  try {
+    const fd = new FormData();
+    fd.append('audio', file);
+    const data = await api('/upload', { method: 'POST', body: fd });
+    activeJobs[data.job_id] = { el: jobEl, name: file.name };
+    pollJob(data.job_id);
+  } catch (e) {
+    toast('Upload failed: ' + e.message, 'err');
+    jobEl.remove();
+  }
+}
+
+/* Index folder */
+async function indexDirectory(dirPath) {
+  const btn = document.getElementById('dir-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    const data = await api('/index', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ directory_path: dirPath }),
+    });
+    const label = data.total_files ? `${dirPath} (${data.total_files} files)` : dirPath;
+    const jobEl = addJobCard(label);
+    activeJobs[data.job_id] = { el: jobEl, name: label };
+    pollJob(data.job_id);
+    document.getElementById('dir-input').value = '';
+    toast(`Indexing ${data.total_files} files…`, 'info');
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML =
+      `<svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+       </svg> Index Folder`;
+  }
+}
+
+/* Create a job card DOM element */
+function addJobCard(name) {
+  const el = document.createElement('div');
+  el.className = 'job-card';
+  el.innerHTML = `
+    <div class="job-header">
+      <div class="job-name">${esc(name)}</div>
+      <div class="job-status pending">Queued</div>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" style="width:4%"></div>
+    </div>
+    <div class="job-sub">Starting…</div>`;
+  document.getElementById('job-list').appendChild(el);
+  return el;
+}
+
+/* Poll job status every 1.5 s */
+function pollJob(jobId) {
+  const iv = setInterval(async () => {
+    try {
+      const job  = await api('/jobs/' + jobId);
+      const info = activeJobs[jobId];
+      if (!info) { clearInterval(iv); return; }
+
+      const statusEl   = info.el.querySelector('.job-status');
+      const progressEl = info.el.querySelector('.progress-fill');
+      const subEl      = info.el.querySelector('.job-sub');
+
+      const p = job.total > 0 ? Math.round(job.completed / job.total * 100) : 0;
+
+      if (job.status === 'pending' || job.status === 'running') {
+        statusEl.textContent = job.status === 'pending' ? 'Queued' : 'Indexing…';
+        statusEl.className = 'job-status running';
+        progressEl.style.width = Math.max(p, 8) + '%';
+        subEl.textContent = job.current_file
+          ? `Processing: ${job.current_file}  (${job.completed}/${job.total})`
+          : 'Starting…';
+
+      } else if (job.status === 'completed') {
+        clearInterval(iv);
+        statusEl.textContent = 'Complete'; statusEl.className = 'job-status completed';
+        progressEl.style.width = '100%'; progressEl.classList.add('done');
+        const r = job.result || {};
+        subEl.textContent = `Done — ${r.success||0} indexed${r.failed > 0 ? `, ${r.failed} failed` : ''}`;
+        toast(`"${info.name}" indexed`, 'ok');
+        delete activeJobs[jobId];
+        updateNavStatus();
+        setTimeout(() => info.el.remove(), 4000);
+        loadLibrary();
+
+      } else if (job.status === 'failed') {
+        clearInterval(iv);
+        statusEl.textContent = 'Failed'; statusEl.className = 'job-status failed';
+        progressEl.classList.add('error'); progressEl.style.width = '100%';
+        subEl.textContent = job.error || 'Unknown error';
+        toast(`Failed: "${info.name}"`, 'err');
+        delete activeJobs[jobId];
+        setTimeout(() => info.el.remove(), 6000);
+      }
+    } catch (_) { clearInterval(iv); }
+  }, 1500);
+}
+
+/* Load & render song grid */
+async function loadLibrary() {
+  try {
+    const data  = document.getElementById('lib-count');
+    const grid  = document.getElementById('songs-grid');
+    const songs = (await api('/songs')).songs || [];
+
+    data.textContent = `${songs.length} file${songs.length !== 1 ? 's' : ''} in library`;
+
+    if (!songs.length) {
+      grid.innerHTML = `
+        <div class="empty-state">
+          <h3>No audio files yet</h3>
+          <p>Upload files above or index a local folder to get started.</p>
+        </div>`;
+      return;
+    }
+
+    grid.innerHTML = songs.map(s => `
+      <div class="song-card">
+        <div class="song-card-top">
+          <div>
+            <div class="song-title">${esc(s.title || s.filename || 'Unknown')}</div>
+            ${s.artist && s.artist !== 'Unknown' ? `<div class="song-artist">${esc(s.artist)}</div>` : ''}
+          </div>
+          <button class="del-btn" onclick="deleteSong('${esc(s.song_id)}')" title="Remove from library">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+            </svg>
+          </button>
+        </div>
+        <div class="song-meta">
+          ${s.duration  ? `<span class="badge">⏱ ${fmtDur(s.duration)}</span>` : ''}
+          ${s.num_hashes ? `<span class="badge">◈ ${fmtNum(s.num_hashes)}</span>` : ''}
+          ${s.filename  ? `<span class="badge">${esc(ext(s.filename))}</span>` : ''}
+        </div>
+      </div>`).join('');
+  } catch (e) {
+    toast('Library load failed: ' + e.message, 'err');
+  }
+}
+
+async function deleteSong(id) {
+  if (!confirm('Remove this file from the knowledge base?')) return;
+  try {
+    await api('/songs/' + id, { method: 'DELETE' });
+    toast('Removed from library', 'ok');
+    loadLibrary();
+    updateNavStatus();
+  } catch (e) {
+    toast('Delete failed: ' + e.message, 'err');
+  }
+}
+
+/* -------------------------------------------------------------------- */
+/* STATS                                                                 */
+/* -------------------------------------------------------------------- */
+async function loadStats() {
+  try {
+    const s = await api('/stats');
+    document.getElementById('st-songs').textContent  = fmtNum(s.total_songs);
+    document.getElementById('st-hashes').textContent = fmtNum(s.total_hashes);
+    document.getElementById('st-unique').textContent = fmtNum(s.unique_hashes);
+    document.getElementById('st-type').textContent   =
+      s.storage_type === 'sqlite' ? 'SQLite' :
+      s.storage_type.charAt(0).toUpperCase() + s.storage_type.slice(1);
+    document.getElementById('st-path').textContent   = s.db_path || 'In-memory';
+  } catch (_) {}
+}
+
+/* -------------------------------------------------------------------- */
+/* Nav status (song count + health)                                      */
+/* -------------------------------------------------------------------- */
+async function updateNavStatus() {
+  try {
+    const s = await api('/stats');
+    document.getElementById('status-dot').className = 'status-dot';
+    document.getElementById('status-text').textContent =
+      `${s.total_songs} song${s.total_songs !== 1 ? 's' : ''}`;
+  } catch (_) {
+    document.getElementById('status-dot').className = 'status-dot error';
+    document.getElementById('status-text').textContent = 'Offline';
+  }
+}
+
+/* -------------------------------------------------------------------- */
+/* Init                                                                  */
+/* -------------------------------------------------------------------- */
+updateNavStatus();
+setInterval(updateNavStatus, 30_000);
+</script>
+</body>
+</html>

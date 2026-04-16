@@ -1,27 +1,15 @@
-# Core Dependencies
+# Web framework
 flask
+flask-cors
+werkzeug
+gunicorn
+
+# Audio processing
 numpy
 scipy
 librosa
 soundfile
-pydub
 
-# Storage
-redis
-python-dotenv
-
-# Performance
-numba
-joblib
-
-# API
-flask-cors
-werkzeug
-
-# Testing (optional)
+# Testing
 pytest
 pytest-cov
-
-# Production
-gunicorn
-
