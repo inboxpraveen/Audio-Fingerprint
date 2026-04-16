@@ -46,20 +46,3 @@ def generate_hashes(peaks, song_id=None, fan_value=5):
     
     return hashes
 
-
-def decode_hash(hash_value):
-    """
-    Decode hash back to its components (for debugging).
-    
-    Args:
-        hash_value: Encoded hash integer
-    
-    Returns:
-        tuple: (freq1, freq2, time_delta)
-    """
-    freq1 = (hash_value >> 20) & 0xFFF
-    freq2 = (hash_value >> 10) & 0x3FF
-    time_delta = hash_value & 0x3FF
-    
-    return freq1, freq2, time_delta
-

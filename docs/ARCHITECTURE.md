@@ -1,288 +1,167 @@
-# Architecture Documentation
+# Architecture
 
-## System Overview
+## Overview
 
-The Audio Fingerprint system is a production-ready audio search engine inspired by Shazam and Google Sound Search. It uses acoustic fingerprinting with spectral peak extraction and combinatorial hashing for fast and accurate song identification.
-
-## Core Algorithm
-
-### 1. Audio Processing Pipeline
+AudioFP is a single-process Python service. Every component — web server, fingerprint engine, and storage — runs in one process. Background indexing jobs use daemon threads.
 
 ```
-Audio File -> Load & Resample -> Mono Conversion -> Normalization -> STFT -> Spectrogram
+┌─────────────────────────────────────────────────┐
+│  Browser / REST client                           │
+└────────────────────┬────────────────────────────┘
+                     │ HTTP
+┌────────────────────▼────────────────────────────┐
+│  Flask (threaded)                                │
+│  ┌──────────────────────────────────────────┐   │
+│  │  /api/v1/*  routes (routes.py)           │   │
+│  └──────────────────────────────────────────┘   │
+│  ┌──────────────────────────────────────────┐   │
+│  │  Static frontend (fingerprint/static/)   │   │
+│  └──────────────────────────────────────────┘   │
+└────────────────────┬────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────┐
+│  Fingerprint Pipeline                            │
+│                                                  │
+│  load_audio → preprocess → STFT spectrogram      │
+│  → spectral peak extraction → hash generation    │
+└────────────────────┬────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────┐
+│  SQLiteStore                                     │
+│  WAL · covering index · thread-local conns       │
+│  batch hash lookup (IN clause, not N queries)    │
+└─────────────────────────────────────────────────┘
 ```
 
-**Key Parameters:**
-- Sample Rate: 11025 Hz (balance between quality and speed)
-- FFT Window: 2048 samples
-- Hop Length: 512 samples
+---
 
-### 2. Fingerprint Generation
+## Fingerprint Algorithm
 
-The fingerprinting algorithm consists of three main steps:
+The algorithm is a direct implementation of the approach described in Wang (2003), the paper behind Shazam.
 
-#### Step 1: Spectrogram Computation
-- Compute Short-Time Fourier Transform (STFT)
-- Generate magnitude spectrogram (frequency x time)
-- Apply logarithmic scaling for better dynamic range
+### 1. Spectrogram
 
-#### Step 2: Spectral Peak Detection
-- Find local maxima using maximum filter
-- Apply amplitude threshold to filter weak peaks
-- Extract peak coordinates: (time_index, frequency_index, amplitude)
+```
+audio  →  librosa.stft(n_fft=2048, hop_length=512)  →  magnitude spectrogram
+```
 
-#### Step 3: Combinatorial Hashing
-- For each peak (anchor), pair with next N peaks (fan_value = 5)
-- Create hash from: (freq1, freq2, time_delta)
-- Hash encoding: `(f1 << 20) | (f2 << 10) | (time_delta & 0x3FF)`
-- Store: (hash_value, time_offset, song_id)
+The signal is loaded at 11,025 Hz (mono), producing a 1025 × T magnitude spectrogram. The low sample rate keeps processing fast while retaining all perceptually relevant frequency information.
 
-### 3. Matching Algorithm
-
-The matching process uses time-offset histogram analysis:
+### 2. Spectral Peak Extraction
 
 ```python
-1. Query database for each hash in query
-2. Group matches by song_id
-3. For each candidate song:
-   - Calculate time_offset = db_time - query_time
-   - Build histogram of time offsets
-   - Score = max(histogram) / total_query_hashes
-4. Return top K matches sorted by score
+log_spec  = log1p(spectrogram)
+local_max = maximum_filter(log_spec, size=20) == log_spec   # local maxima
+above_thr = log_spec > log1p(min_amplitude)                  # amplitude gate
+peaks     = where(local_max & above_thr)                     # (freq, time) pairs
 ```
 
-**Why This Works:**
-- Correct matches will have consistent time offsets
-- Noise and false matches will have random offsets
-- The histogram peak indicates the true match
+A 20×20 neighbourhood filter finds the most prominent spectral events — the "constellation map". Only peaks above a minimum amplitude threshold are kept, discarding quiet noise.
 
-## Data Flow
+### 3. Combinatorial Hash Generation
 
-### Indexing Flow
+For each anchor peak, the next `fan_value` (default 10) peaks in time are paired with it:
 
 ```
-Audio Files
-    |
-    v
-Dataset Loader (find audio files)
-    |
-    v
-Indexer (parallel processing)
-    |
-    +-> Load Audio
-    +-> Generate Fingerprint
-    +-> Create Hashes
-    +-> Store in Database
-    |
-    v
-Storage Backend (Memory/SQLite/PostgreSQL)
+hash = (anchor_freq << 20) | (target_freq << 10) | (time_delta & 0x3FF)
 ```
 
-### Query Flow
+Each hash encodes two frequencies and the time gap between them in a single 32-bit integer. The anchor's time position is stored alongside the hash for offset alignment.
+
+With `fan_value=10`, a typical 3-minute song produces ~100K–500K hashes.
+
+### 4. Search / Matching
 
 ```
-Query Audio
-    |
-    v
-Load & Process
-    |
-    v
-Generate Fingerprint
-    |
-    v
-Create Hashes
-    |
-    v
-Query Database
-    |
-    v
-Match & Score
-    |
-    v
-Return Top Matches
+query_clip  →  same pipeline  →  query_hashes
+
+# One batch SQL query instead of N individual queries
+db_results = SELECT hash_value, song_id, time_offset
+             FROM fingerprints
+             WHERE hash_value IN (h1, h2, … hN)
+
+for each (hash, song_id, db_time) in db_results:
+    time_offset = db_time - query_time
+    candidate_offsets[song_id].append(time_offset)
+
+for song_id, offsets in candidates:
+    best_offset, count = Counter(offsets).most_common(1)[0]
+    confidence = count / total_query_hashes
+    match_time  = best_offset * hop_length / sample_rate
 ```
 
-## Storage Schema
+The key insight: if two recordings share the same audio segment, their hashes will align at a consistent time offset. The most common offset in the histogram identifies the match, and its absolute value gives the position in the original recording.
 
-### Memory Store Structure
+---
 
-```python
-hash_table = {
-    hash_int: [(song_id, time_offset), ...],
-    ...
-}
+## Storage
 
-song_metadata = {
-    song_id: {
-        'title': str,
-        'artist': str,
-        'filepath': str,
-        'duration': float,
-        'num_peaks': int,
-        'num_hashes': int
-    },
-    ...
-}
-```
+### Schema
 
-### SQLite Schema
-
-**Songs Table:**
 ```sql
 CREATE TABLE songs (
-    song_id TEXT PRIMARY KEY,
-    title TEXT,
-    artist TEXT,
-    filepath TEXT,
-    duration REAL,
-    metadata TEXT  -- JSON blob
-)
-```
+    song_id    TEXT PRIMARY KEY,
+    title      TEXT,
+    artist     TEXT,
+    filepath   TEXT,
+    duration   REAL,
+    metadata   TEXT,   -- full JSON blob
+    indexed_at REAL
+);
 
-**Fingerprints Table:**
-```sql
 CREATE TABLE fingerprints (
-    hash_value INTEGER,
-    song_id TEXT,
-    time_offset INTEGER,
-    FOREIGN KEY (song_id) REFERENCES songs(song_id)
-)
+    hash_value  INTEGER NOT NULL,
+    song_id     TEXT    NOT NULL,
+    time_offset INTEGER NOT NULL
+);
 
-CREATE INDEX idx_hash_value ON fingerprints(hash_value)
+-- Primary lookup index
+CREATE INDEX idx_hash       ON fingerprints (hash_value);
+-- Covering index — lookups never touch the table heap
+CREATE INDEX idx_hash_cover ON fingerprints (hash_value, song_id, time_offset);
 ```
 
-## Performance Characteristics
+### SQLite Tuning
 
-### Time Complexity
+| Pragma | Value | Reason |
+|--------|-------|--------|
+| `journal_mode` | `WAL` | Concurrent reads during writes |
+| `synchronous` | `NORMAL` | Faster commits, still crash-safe |
+| `cache_size` | `-65536` (64 MB) | Hot index pages stay in memory |
+| `mmap_size` | `268435456` (256 MB) | OS-level memory-mapped reads |
+| `temp_store` | `MEMORY` | Temp tables in RAM |
 
-- **Indexing**: O(n) per song, where n is audio length
-  - STFT: O(n log n)
-  - Peak detection: O(m), where m is spectrogram size
-  - Hash generation: O(p * f), where p is peaks, f is fan_value
+Thread-local connections mean each Flask worker thread reuses its own connection rather than opening/closing one per request.
 
-- **Query**: O(h * log s), where h is query hashes, s is songs
-  - Hash lookup: O(1) average with index
-  - Scoring: O(h * m), where m is matches per hash
+---
 
-### Space Complexity
+## Background Indexing
 
-- **Per Song**: ~2000-5000 hashes (depends on duration)
-- **Hash Size**: 8 bytes per hash entry
-- **Metadata**: ~200 bytes per song
-- **Total**: ~1-2 MB per 100 songs
+When a file is uploaded or a directory is submitted for indexing, the route handler:
 
-### Scalability Estimates
+1. Creates a job entry in `app.jobs` (an in-memory dict)
+2. Starts a daemon thread running `_run_index_job`
+3. Returns `202 Accepted` with the `job_id`
 
-| Songs | Hashes | Memory (RAM) | Query Time |
-|-------|--------|--------------|------------|
-| 1,000 | 3M | 24 MB | <50 ms |
-| 10,000 | 30M | 240 MB | <100 ms |
-| 100,000 | 300M | 2.4 GB | <200 ms |
-| 1,000,000 | 3B | 24 GB | <500 ms |
+The thread updates `app.jobs[job_id]` directly (safe due to Python's GIL for dict operations). The frontend polls `GET /api/v1/jobs/<id>` every 1.5 seconds until `status` is `completed` or `failed`.
 
-## Component Architecture
+For directory indexing, `Indexer.index_directory` uses a `ThreadPoolExecutor` (default 4 workers) to parallelise per-file fingerprinting.
 
-### Core Module
+---
 
-```
-core/
-├── audio_processor.py    # Audio I/O and preprocessing
-├── fingerprinter.py      # Peak detection algorithm
-├── hash_generator.py     # Combinatorial hashing
-└── matcher.py           # Matching and scoring
-```
+## Key Files
 
-### Storage Module
-
-```
-storage/
-├── base.py              # Abstract interface
-├── memory_store.py      # In-memory (fast, volatile)
-├── sqlite_store.py      # SQLite (persistent, single-node)
-└── postgres_store.py    # PostgreSQL (distributed, scalable)
-```
-
-### API Module
-
-```
-api/
-├── app.py              # Flask application factory
-├── routes.py           # REST endpoints
-├── validators.py       # Input validation
-└── responses.py        # Response formatting
-```
-
-### Training Module
-
-```
-training/
-├── indexer.py          # Batch indexing with parallelization
-├── dataset_loader.py   # Audio file discovery
-└── progress_tracker.py # Progress reporting
-```
-
-## Design Decisions
-
-### Why 11025 Hz Sample Rate?
-- Nyquist frequency of 5512 Hz covers most musical content
-- 50% reduction in computation vs 22050 Hz
-- Minimal impact on recognition accuracy
-
-### Why Combinatorial Hashing?
-- Robust to noise and distortion
-- Time-invariant (works with clips from any position)
-- Efficient storage and lookup
-
-### Why Time-Offset Histogram?
-- Simple and effective scoring method
-- Naturally filters false positives
-- No machine learning required
-
-## Extension Points
-
-### Adding New Storage Backends
-1. Inherit from `StorageBackend`
-2. Implement all abstract methods
-3. Add to `create_app()` in `app.py`
-
-### Custom Fingerprinting Algorithms
-1. Create new class in `core/`
-2. Implement `generate_fingerprint()` method
-3. Return list of (time, freq, amplitude) tuples
-
-### API Extensions
-1. Add new routes in `routes.py`
-2. Register blueprint in `app.py`
-3. Add tests in `tests/test_api.py`
-
-## Security Considerations
-
-1. **File Upload**: Validate file types and sizes
-2. **Path Traversal**: Use secure filename handling
-3. **Resource Limits**: Set max file size and query limits
-4. **Rate Limiting**: Implement in production (not included)
-5. **Authentication**: Add if exposing publicly (not included)
-
-## Monitoring and Logging
-
-### Log Levels
-- **DEBUG**: Detailed algorithm steps
-- **INFO**: Request/response, indexing progress
-- **WARNING**: Validation failures, recoverable errors
-- **ERROR**: Processing failures, database errors
-
-### Metrics to Track
-- Query response time
-- Match confidence scores
-- Database size growth
-- Error rates by endpoint
-- Peak detection counts
-
-## Future Optimizations
-
-1. **Numba JIT Compilation**: Speed up peak detection
-2. **Redis Caching**: Cache frequent query results
-3. **Batch Query Processing**: Process multiple queries together
-4. **GPU Acceleration**: Use CUDA for STFT computation
-5. **Distributed Storage**: Shard hash table across nodes
-
+| Path | Role |
+|------|------|
+| `run.py` | Entry point — starts the Flask dev server |
+| `fingerprint/api/app.py` | Flask app factory |
+| `fingerprint/api/routes.py` | All REST endpoints |
+| `fingerprint/core/audio_processor.py` | Audio loading and STFT |
+| `fingerprint/core/fingerprinter.py` | Peak extraction |
+| `fingerprint/core/hash_generator.py` | Combinatorial hash generation |
+| `fingerprint/core/matcher.py` | Batch lookup and offset scoring |
+| `fingerprint/storage/sqlite_store.py` | Optimised SQLite backend |
+| `fingerprint/storage/memory_store.py` | In-memory backend (testing) |
+| `fingerprint/training/indexer.py` | Single-file and directory indexer |
+| `fingerprint/static/index.html` | Single-file frontend SPA |
+| `config/default.py` | Base configuration |

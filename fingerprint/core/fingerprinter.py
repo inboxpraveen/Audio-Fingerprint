@@ -85,21 +85,4 @@ class Fingerprinter:
         
         return peaks
     
-    def _create_constellation_map(self, peaks):
-        """
-        Create constellation map from peaks (for visualization).
-        
-        Args:
-            peaks: List of (time_idx, freq_idx, amplitude) tuples
-        
-        Returns:
-            dict: Constellation map
-        """
-        constellation = {}
-        for time_idx, freq_idx, amplitude in peaks:
-            if time_idx not in constellation:
-                constellation[time_idx] = []
-            constellation[time_idx].append((freq_idx, amplitude))
-        
-        return constellation
 

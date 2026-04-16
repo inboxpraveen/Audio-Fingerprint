@@ -1,383 +1,231 @@
-# API Documentation
+# API Reference
 
-## Base URL
+All endpoints are prefixed with `/api/v1`.  
+Request bodies use `application/json` unless otherwise noted.  
+All responses are JSON.
 
-```
-http://localhost:5000/api/v1
-```
+---
 
-## Endpoints
+## Search
 
-### 1. Search for Song
+### `POST /api/v1/search`
 
-Search for a song by uploading an audio clip.
+Search the knowledge base with an audio clip.
 
-**Endpoint:** `POST /api/v1/search`
+**Request** — `multipart/form-data`
 
-**Content-Type:** `multipart/form-data`
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `audio` | file | ✓ | Audio clip to search with |
 
-**Parameters:**
-- `audio` (file, required): Audio file to search (5-10 seconds recommended)
-
-**Supported Formats:**
-- MP3 (.mp3)
-- WAV (.wav)
-- FLAC (.flac)
-- M4A (.m4a)
-- OGG (.ogg)
-
-**Request Example:**
-
-```bash
-curl -X POST \
-  -F "audio=@query.mp3" \
-  http://localhost:5000/api/v1/search
-```
-
-**Response Example:**
+**Response `200`**
 
 ```json
 {
+  "found": true,
+  "query_duration_sec": 4.23,
+  "processing_time_ms": 187.4,
   "matches": [
     {
-      "song_id": "abc123",
-      "title": "Song Title",
-      "artist": "Artist Name",
-      "confidence": 0.9523,
-      "duration": 180.5,
-      "filepath": "/path/to/song.mp3"
-    },
-    {
-      "song_id": "def456",
-      "title": "Another Song",
-      "artist": "Another Artist",
-      "confidence": 0.3421,
-      "duration": 210.0,
-      "filepath": "/path/to/another.mp3"
+      "song_id": "3f2a1b...",
+      "confidence": 0.8732,
+      "match_offset_sec": 42.5,
+      "title": "Artist - Song Title",
+      "artist": "Artist",
+      "duration": 214.8,
+      "filename": "song.mp3",
+      "num_hashes": 12400
     }
-  ],
-  "query_duration_sec": 8.5,
-  "processing_time_ms": 125.34,
-  "found": true
+  ]
 }
 ```
 
-**Response Fields:**
-- `matches`: Array of matching songs (ordered by confidence)
-  - `song_id`: Unique song identifier
-  - `title`: Song title
-  - `artist`: Artist name
-  - `confidence`: Match confidence score (0-1)
-  - `duration`: Song duration in seconds
-  - `filepath`: Path to original audio file
-- `query_duration_sec`: Duration of query audio
-- `processing_time_ms`: Total processing time
-- `found`: Boolean indicating if any matches were found
+| Field | Description |
+|-------|-------------|
+| `confidence` | `0.0 – 1.0` fraction of query hashes that align at the best time offset |
+| `match_offset_sec` | Position in the original song (seconds) where the clip best matches |
 
-**Status Codes:**
-- `200 OK`: Search completed successfully
-- `400 Bad Request`: Invalid file or missing audio
-- `500 Internal Server Error`: Processing error
+**Error `400`** — no file, unsupported format, or file too large  
+**Error `500`** — processing failure
 
 ---
 
-### 2. Get All Songs
+## Upload a File
 
-Retrieve list of all indexed songs.
+### `POST /api/v1/upload`
 
-**Endpoint:** `GET /api/v1/songs`
+Upload and index a single audio file. Returns immediately with a job ID; poll `/jobs/<id>` for progress.
 
-**Request Example:**
+**Request** — `multipart/form-data`
 
-```bash
-curl http://localhost:5000/api/v1/songs
-```
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `audio` | file | ✓ | Audio file to index |
 
-**Response Example:**
+**Response `202`**
 
 ```json
 {
+  "job_id": "a1b2c3...",
+  "message": "Indexing started",
+  "filename": "track.mp3"
+}
+```
+
+---
+
+## Index a Directory
+
+### `POST /api/v1/index`
+
+Index all audio files found recursively in a local directory. Returns immediately with a job ID.
+
+**Request body**
+
+```json
+{ "directory_path": "/absolute/path/to/music" }
+```
+
+**Response `202`**
+
+```json
+{
+  "job_id": "d4e5f6...",
+  "message": "Indexing started for 47 files",
+  "total_files": 47
+}
+```
+
+**Error `400`** — missing path, path not found, or no audio files in directory
+
+---
+
+## Job Status
+
+### `GET /api/v1/jobs/<job_id>`
+
+Poll indexing progress.
+
+**Response `200`**
+
+```json
+{
+  "status": "running",
+  "type": "upload",
+  "filename": "track.mp3",
+  "total": 1,
+  "completed": 0,
+  "current_file": "track.mp3",
+  "created_at": 1713300000.0,
+  "started_at": 1713300001.2
+}
+```
+
+| `status` | Meaning |
+|----------|---------|
+| `pending` | Job queued, not yet started |
+| `running` | Actively indexing |
+| `completed` | Finished; `result` field present |
+| `failed` | Error; `error` field present |
+
+When `status` is `completed`:
+
+```json
+{
+  "status": "completed",
+  "result": {
+    "total": 47,
+    "success": 45,
+    "failed": 2,
+    "errors": [
+      { "file": "/path/bad.mp3", "error": "unsupported format" }
+    ]
+  },
+  "completed_at": 1713300120.5
+}
+```
+
+**Error `404`** — job not found
+
+---
+
+## Songs
+
+### `GET /api/v1/songs`
+
+List all indexed songs (newest first).
+
+**Response `200`**
+
+```json
+{
+  "count": 3,
   "songs": [
     {
-      "song_id": "abc123",
-      "title": "Song Title",
-      "artist": "Artist Name",
-      "filepath": "/path/to/song.mp3",
-      "duration": 180.5,
-      "num_peaks": 1234,
-      "num_hashes": 4567
+      "song_id": "...",
+      "title": "Track Name",
+      "artist": "Artist",
+      "filename": "track.mp3",
+      "duration": 214.8,
+      "num_peaks": 1840,
+      "num_hashes": 12400,
+      "indexed_at": 1713300120.5
     }
-  ],
-  "count": 1
+  ]
 }
 ```
-
-**Status Codes:**
-- `200 OK`: Request successful
-- `500 Internal Server Error`: Database error
 
 ---
 
-### 3. Get Song Details
+### `GET /api/v1/songs/<song_id>`
 
-Get metadata for a specific song.
+Get metadata for a single song.
 
-**Endpoint:** `GET /api/v1/songs/<song_id>`
-
-**Request Example:**
-
-```bash
-curl http://localhost:5000/api/v1/songs/abc123
-```
-
-**Response Example:**
-
-```json
-{
-  "song_id": "abc123",
-  "title": "Song Title",
-  "artist": "Artist Name",
-  "filepath": "/path/to/song.mp3",
-  "duration": 180.5,
-  "filename": "song.mp3",
-  "num_peaks": 1234,
-  "num_hashes": 4567
-}
-```
-
-**Status Codes:**
-- `200 OK`: Song found
-- `404 Not Found`: Song ID does not exist
-- `500 Internal Server Error`: Database error
+**Response `200`** — same shape as an element in the list above  
+**Error `404`** — song not found
 
 ---
 
-### 4. Index Songs
+### `DELETE /api/v1/songs/<song_id>`
 
-Start indexing songs from a directory.
+Remove a song and all its fingerprints from the knowledge base.
 
-**Endpoint:** `POST /api/v1/index`
-
-**Content-Type:** `application/json`
-
-**Request Body:**
+**Response `200`**
 
 ```json
-{
-  "directory_path": "/path/to/songs"
-}
+{ "message": "Song deleted", "song_id": "..." }
 ```
 
-**Request Example:**
-
-```bash
-curl -X POST \
-  -H "Content-Type: application/json" \
-  -d '{"directory_path": "/path/to/songs"}' \
-  http://localhost:5000/api/v1/index
-```
-
-**Response Example:**
-
-```json
-{
-  "message": "Indexing job started",
-  "directory": "/path/to/songs"
-}
-```
-
-**Status Codes:**
-- `202 Accepted`: Indexing job started
-- `400 Bad Request`: Invalid directory path
-- `500 Internal Server Error`: Indexing error
-
-**Note:** This endpoint currently returns immediately. For production use, implement async job processing with status tracking.
+**Error `404`** — song not found
 
 ---
 
-### 5. Get Statistics
+## Statistics
 
-Get database statistics.
+### `GET /api/v1/stats`
 
-**Endpoint:** `GET /api/v1/stats`
-
-**Request Example:**
-
-```bash
-curl http://localhost:5000/api/v1/stats
-```
-
-**Response Example:**
+**Response `200`**
 
 ```json
 {
-  "total_songs": 1000,
-  "total_hashes": 3500000,
-  "unique_hashes": 2800000,
+  "total_songs": 124,
+  "total_hashes": 1532800,
+  "unique_hashes": 918430,
   "storage_type": "sqlite",
-  "db_path": "./data/database/fingerprint.db"
+  "db_path": "data/fingerprint_dev.db"
 }
 ```
 
-**Response Fields:**
-- `total_songs`: Number of indexed songs
-- `total_hashes`: Total number of hash entries
-- `unique_hashes`: Number of unique hash values
-- `storage_type`: Storage backend type (memory/sqlite/postgres)
-- `db_path`: Database file path (SQLite only)
-
-**Status Codes:**
-- `200 OK`: Request successful
-- `500 Internal Server Error`: Database error
-
 ---
 
-### 6. Health Check
+## Health
 
-Check if the API is running.
+### `GET /api/v1/health`
 
-**Endpoint:** `GET /api/v1/health`
+Liveness probe.
 
-**Request Example:**
-
-```bash
-curl http://localhost:5000/api/v1/health
-```
-
-**Response Example:**
+**Response `200`**
 
 ```json
-{
-  "status": "healthy",
-  "timestamp": 1703001234.567
-}
+{ "status": "healthy", "timestamp": 1713300000.0 }
 ```
-
-**Status Codes:**
-- `200 OK`: Service is healthy
-
----
-
-## Error Responses
-
-All error responses follow this format:
-
-```json
-{
-  "error": "Error message describing what went wrong",
-  "status": 400
-}
-```
-
-### Common Error Codes
-
-**400 Bad Request:**
-- No audio file provided
-- Invalid file type
-- File too large
-- Missing required parameters
-
-**404 Not Found:**
-- Song ID not found
-- Endpoint does not exist
-
-**500 Internal Server Error:**
-- Audio processing failure
-- Database connection error
-- Unexpected server error
-
----
-
-## Rate Limiting
-
-Currently, no rate limiting is implemented. For production deployment, consider adding:
-
-- Per-IP rate limits
-- API key authentication
-- Request throttling
-
----
-
-## CORS Configuration
-
-CORS is enabled by default for all origins in development mode.
-
-For production, configure allowed origins in `config/production.py`:
-
-```python
-CORS_ORIGINS = ['https://yourdomain.com']
-```
-
----
-
-## File Size Limits
-
-**Maximum Upload Size:** 16 MB (configurable)
-
-To change the limit, update `MAX_CONTENT_LENGTH` in configuration:
-
-```python
-MAX_CONTENT_LENGTH = 32 * 1024 * 1024  # 32 MB
-```
-
----
-
-## Performance Tips
-
-1. **Query Audio Length:** 5-10 seconds provides best balance of speed and accuracy
-2. **Audio Quality:** Lower quality audio (128 kbps MP3) works fine
-3. **Concurrent Requests:** API supports concurrent requests
-4. **Database Choice:** Use SQLite for <100k songs, PostgreSQL for larger datasets
-
----
-
-## Python Client Example
-
-```python
-import requests
-
-# Search for a song
-with open('query.mp3', 'rb') as f:
-    response = requests.post(
-        'http://localhost:5000/api/v1/search',
-        files={'audio': f}
-    )
-    
-    if response.status_code == 200:
-        data = response.json()
-        if data['found']:
-            best_match = data['matches'][0]
-            print(f"Found: {best_match['title']} by {best_match['artist']}")
-            print(f"Confidence: {best_match['confidence']:.2%}")
-        else:
-            print("No matches found")
-    else:
-        print(f"Error: {response.json()['error']}")
-```
-
----
-
-## JavaScript Client Example
-
-```javascript
-// Search for a song
-const formData = new FormData();
-formData.append('audio', audioFile);
-
-fetch('http://localhost:5000/api/v1/search', {
-  method: 'POST',
-  body: formData
-})
-  .then(response => response.json())
-  .then(data => {
-    if (data.found) {
-      const match = data.matches[0];
-      console.log(`Found: ${match.title} by ${match.artist}`);
-      console.log(`Confidence: ${(match.confidence * 100).toFixed(2)}%`);
-    } else {
-      console.log('No matches found');
-    }
-  })
-  .catch(error => console.error('Error:', error));
-```
-
