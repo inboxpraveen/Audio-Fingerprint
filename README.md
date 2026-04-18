@@ -7,7 +7,7 @@
   <img src="assets/Header.png" alt="AudioFP Banner" width="800" />
 </p>
 
-AudioFP is a production-ready, self-hosted audio fingerprinting platform. It combines a high-accuracy Shazam-style matching engine with a clean web interface, letting you build a searchable audio knowledge base from your own files - no cloud, no transcription, no API keys required.
+Audio Finger Print is a production-ready, self-hosted audio fingerprinting platform. It combines a high-accuracy Shazam-style matching engine with a clean web interface, letting you build a searchable audio knowledge base from your own files - no cloud, no transcription, no API keys required.
 
 ---
 
@@ -23,6 +23,16 @@ AudioFP is a production-ready, self-hosted audio fingerprinting platform. It com
 - **REST API** - every feature is accessible via a JSON API for programmatic use
 
 ---
+
+## UI Screenshots
+
+![Audio Library Light](assets/Audio-Library-Light.png)
+
+![Audio Search Light](assets/Audio-Search-Light.png)
+
+![Audio Library Dark Theme](assets/Audio-Library-Dark.png)
+
+
 
 ## Quick Start
 
@@ -72,53 +82,7 @@ python run.py --port 8080                   # custom port
 python run.py --env production --port 80    # production config
 ```
 
----
-
-## How to Use
-
-### Search
-1. Go to the **Search** tab
-2. Drop or browse an audio clip (3–30 seconds recommended)
-3. Click **Search Library**
-4. Results show song name, confidence %, and the exact timestamp match in the original file
-
-### Build Your Library
-1. Go to the **Library** tab
-2. **Upload files** - drag-and-drop one or more audio files; each is indexed automatically
-3. **Index a folder** - paste a local folder path and click **Index Folder** to bulk-index your entire music collection
-4. Progress is shown live; indexed files appear in the grid below
-5. Delete any file from the library with the trash button on its card
-
-### Stats
-The **Stats** tab shows total songs, total fingerprints, unique hashes, and the storage backend path.
-
----
-
-## UI Screenshots
-
-### Search View
-
-Drop an audio or video clip into the search zone. AudioFP fingerprints the clip and returns ranked matches with confidence scores, timestamps, and metadata - all in milliseconds.
-
-<p align="center">
-  <img src="assets/Search-Page.png" alt="AudioFP Search View – showing search results with confidence scores and match timestamps" width="800" />
-</p>
-
-### Library / Knowledge Base View
-
-Upload individual audio or video files, or point to a local folder for batch indexing. Every indexed file appears in a browsable grid with duration, fingerprint count, and format badges.
-
-<p align="center">
-  <img src="assets/Knowledge-Base-Page.png" alt="AudioFP Library View – showing indexed songs with metadata and management controls" width="800" />
-</p>
-
----
-
-## Supported Formats
-
-MP3 · WAV · FLAC · M4A · OGG · AAC · WMA · OPUS
-
----
+<hr>
 
 ## REST API
 
