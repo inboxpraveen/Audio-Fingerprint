@@ -1,4 +1,4 @@
-"""SQLite storage backend — WAL mode, thread-local connections, batch queries."""
+"""SQLite storage backend - WAL mode, thread-local connections, batch queries."""
 
 import sqlite3
 import json
@@ -11,7 +11,7 @@ class SQLiteStore(StorageBackend):
     SQLite storage backend with:
     - WAL journal mode for concurrent reads during writes
     - Thread-local connections (one connection per thread, reused)
-    - Batch hash lookup (single SQL query vs N queries — huge speedup)
+    - Batch hash lookup (single SQL query vs N queries - huge speedup)
     - Covering index on (hash_value, song_id, time_offset)
     - Large in-memory page cache and mmap for fast reads
     """
@@ -127,7 +127,7 @@ class SQLiteStore(StorageBackend):
         conn.commit()
 
     # ------------------------------------------------------------------
-    # Read — single hash (kept for compatibility with base interface)
+    # Read - single hash (kept for compatibility with base interface)
     # ------------------------------------------------------------------
 
     def query_hash(self, hash_value: int) -> list:
@@ -139,7 +139,7 @@ class SQLiteStore(StorageBackend):
         return cur.fetchall()
 
     # ------------------------------------------------------------------
-    # Read — batch hash lookup (primary search path)
+    # Read - batch hash lookup (primary search path)
     # ------------------------------------------------------------------
 
     def query_hashes_batch(self, hash_values: list) -> list:

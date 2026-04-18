@@ -45,7 +45,7 @@ class MemoryStore(StorageBackend):
         return self.hash_table.get(hash_value, [])
 
     def query_hashes_batch(self, hash_values: list) -> list:
-        """Batch lookup — much faster than calling query_hash N times."""
+        """Batch lookup - much faster than calling query_hash N times."""
         results = []
         for hv in hash_values:
             for song_id, time_offset in self.hash_table.get(hv, []):

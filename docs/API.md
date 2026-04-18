@@ -12,7 +12,7 @@ All responses are JSON.
 
 Search the knowledge base with an audio clip.
 
-**Request** — `multipart/form-data`
+**Request** - `multipart/form-data`
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -45,8 +45,8 @@ Search the knowledge base with an audio clip.
 | `confidence` | `0.0 – 1.0` fraction of query hashes that align at the best time offset |
 | `match_offset_sec` | Position in the original song (seconds) where the clip best matches |
 
-**Error `400`** — no file, unsupported format, or file too large  
-**Error `500`** — processing failure
+**Error `400`** - no file, unsupported format, or file too large  
+**Error `500`** - processing failure
 
 ---
 
@@ -56,7 +56,7 @@ Search the knowledge base with an audio clip.
 
 Upload and index a single audio file. Returns immediately with a job ID; poll `/jobs/<id>` for progress.
 
-**Request** — `multipart/form-data`
+**Request** - `multipart/form-data`
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -96,7 +96,7 @@ Index all audio files found recursively in a local directory. Returns immediatel
 }
 ```
 
-**Error `400`** — missing path, path not found, or no audio files in directory
+**Error `400`** - missing path, path not found, or no audio files in directory
 
 ---
 
@@ -145,7 +145,7 @@ When `status` is `completed`:
 }
 ```
 
-**Error `404`** — job not found
+**Error `404`** - job not found
 
 ---
 
@@ -181,8 +181,8 @@ List all indexed songs (newest first).
 
 Get metadata for a single song.
 
-**Response `200`** — same shape as an element in the list above  
-**Error `404`** — song not found
+**Response `200`** - same shape as an element in the list above  
+**Error `404`** - song not found
 
 ---
 
@@ -196,7 +196,7 @@ Remove a song and all its fingerprints from the knowledge base.
 { "message": "Song deleted", "song_id": "..." }
 ```
 
-**Error `404`** — song not found
+**Error `404`** - song not found
 
 ---
 

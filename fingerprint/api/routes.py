@@ -95,7 +95,7 @@ def _start_job(app, job_meta: dict, indexer: Indexer, target, is_directory: bool
 def search():
     """Search the knowledge base with an audio clip.
 
-    Request: multipart/form-data — field 'audio'
+    Request: multipart/form-data - field 'audio'
     Response: JSON with ranked matches, confidence scores, and match timestamps
     """
     start_time = time.time()
@@ -167,7 +167,7 @@ def search():
 def upload_song():
     """Upload an audio file and add it to the knowledge base.
 
-    Request: multipart/form-data — field 'audio'
+    Request: multipart/form-data - field 'audio'
     Response: 202 with job_id; poll /jobs/<job_id> for progress.
     """
     if "audio" not in request.files:

@@ -6,12 +6,13 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from ..core import load_audio, preprocess_audio, Fingerprinter, generate_hashes
+from ..core.audio_processor import is_video_file
 from .dataset_loader import DatasetLoader
 from .progress_tracker import ProgressTracker
 
 
 class Indexer:
-    """Batch indexer — fingerprints one or many audio files and stores results."""
+    """Batch indexer - fingerprints one or many audio files and stores results."""
 
     def __init__(
         self,
@@ -68,6 +69,7 @@ class Indexer:
                 "num_peaks": len(peaks),
                 "num_hashes": len(hashes),
                 "indexed_at": time.time(),
+                "source_type": "video" if is_video_file(filepath) else "audio",
                 **file_meta,  # title, artist (parsed from filename)
             }
 

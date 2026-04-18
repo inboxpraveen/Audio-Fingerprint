@@ -85,7 +85,7 @@ AudioFP creates these automatically on startup:
 | `data/uploads/` | Audio files uploaded via the UI |
 | `data/logs/` | Log files (when `LOG_FILE` is set) |
 
-Back up the `.db` file to preserve your indexed library. Uploaded files in `data/uploads/` can be deleted after indexing if storage is a concern — the fingerprints remain in the database.
+Back up the `.db` file to preserve your indexed library. Uploaded files in `data/uploads/` can be deleted after indexing if storage is a concern - the fingerprints remain in the database.
 
 ---
 

@@ -12,7 +12,7 @@ Typical end-to-end search time (from HTTP request to JSON response):
 
 *Measured on a mid-range laptop with SQLite on an SSD. Results vary by audio complexity and hardware.*
 
-The dominant cost is the batch SQL lookup. The covering index means SQLite never touches the table heap — it reads `(hash_value, song_id, time_offset)` directly from the index B-tree.
+The dominant cost is the batch SQL lookup. The covering index means SQLite never touches the table heap - it reads `(hash_value, song_id, time_offset)` directly from the index B-tree.
 
 ---
 
@@ -67,7 +67,7 @@ Each fingerprint row in SQLite occupies ~24 bytes (3 × 8-byte integers). 1 mill
 For very large libraries (> 500 K songs), increase the in-memory page cache:
 
 ```python
-# fingerprint/storage/sqlite_store.py — _get_conn()
+# fingerprint/storage/sqlite_store.py - _get_conn()
 conn.execute("PRAGMA cache_size=-262144")  # 256 MB
 conn.execute("PRAGMA mmap_size=1073741824")  # 1 GB
 ```

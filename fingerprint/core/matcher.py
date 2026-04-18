@@ -1,6 +1,14 @@
 """Fingerprint matching and scoring."""
 
+import struct
 from collections import defaultdict, Counter
+
+
+def _ensure_int(value):
+    """Convert a value to int, handling bytes from SQLite BLOB storage."""
+    if isinstance(value, bytes):
+        return struct.unpack('<q', value)[0]  # little-endian int64
+    return int(value)
 
 
 def match_fingerprint(
@@ -46,6 +54,7 @@ def match_fingerprint(
     # Accumulate time-offset differences per candidate song
     candidate_offsets: dict = defaultdict(list)
     for hash_value, song_id, db_time in db_results:
+        db_time = _ensure_int(db_time)
         for query_time in hash_to_qtimes[hash_value]:
             candidate_offsets[song_id].append(db_time - query_time)
 

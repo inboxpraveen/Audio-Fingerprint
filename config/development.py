@@ -4,7 +4,7 @@ from .default import Config
 
 
 class DevelopmentConfig(Config):
-    """Development — SQLite persistence so the library survives restarts."""
+    """Development - SQLite persistence so the library survives restarts."""
 
     DEBUG = True
     TESTING = False

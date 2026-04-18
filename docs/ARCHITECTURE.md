@@ -2,7 +2,7 @@
 
 ## Overview
 
-AudioFP is a single-process Python service. Every component — web server, fingerprint engine, and storage — runs in one process. Background indexing jobs use daemon threads.
+AudioFP is a single-process Python service. Every component - web server, fingerprint engine, and storage - runs in one process. Background indexing jobs use daemon threads.
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -56,7 +56,7 @@ above_thr = log_spec > log1p(min_amplitude)                  # amplitude gate
 peaks     = where(local_max & above_thr)                     # (freq, time) pairs
 ```
 
-A 20×20 neighbourhood filter finds the most prominent spectral events — the "constellation map". Only peaks above a minimum amplitude threshold are kept, discarding quiet noise.
+A 20×20 neighbourhood filter finds the most prominent spectral events - the "constellation map". Only peaks above a minimum amplitude threshold are kept, discarding quiet noise.
 
 ### 3. Combinatorial Hash Generation
 
@@ -117,7 +117,7 @@ CREATE TABLE fingerprints (
 
 -- Primary lookup index
 CREATE INDEX idx_hash       ON fingerprints (hash_value);
--- Covering index — lookups never touch the table heap
+-- Covering index - lookups never touch the table heap
 CREATE INDEX idx_hash_cover ON fingerprints (hash_value, song_id, time_offset);
 ```
 
@@ -153,7 +153,7 @@ For directory indexing, `Indexer.index_directory` uses a `ThreadPoolExecutor` (d
 
 | Path | Role |
 |------|------|
-| `run.py` | Entry point — starts the Flask dev server |
+| `run.py` | Entry point - starts the Flask dev server |
 | `fingerprint/api/app.py` | Flask app factory |
 | `fingerprint/api/routes.py` | All REST endpoints |
 | `fingerprint/core/audio_processor.py` | Audio loading and STFT |

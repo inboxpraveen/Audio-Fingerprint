@@ -42,7 +42,7 @@ def generate_hashes(peaks, song_id=None, fan_value=5):
                 )
                 
                 # Store (hash, time_offset, song_id)
-                hashes.append((hash_value, anchor_time, song_id))
+                hashes.append((hash_value, int(anchor_time), song_id))
     
     return hashes
 
