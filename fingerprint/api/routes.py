@@ -3,10 +3,11 @@
 import os
 import time
 import uuid
+import mimetypes
 import threading
 import tempfile
 
-from flask import Blueprint, request, current_app, jsonify
+from flask import Blueprint, request, current_app, jsonify, send_file
 from werkzeug.utils import secure_filename
 
 from ..core import load_audio, preprocess_audio, Fingerprinter, generate_hashes, match_fingerprint
@@ -140,10 +141,16 @@ def search():
             fan_value=current_app.config.get("FAN_VALUE", 10),
         )
 
+        # Dynamic top_k: form data → app setting → default 4
+        try:
+            top_k = int(request.form.get("top_k", 0)) or getattr(current_app, "search_top_k", 4)
+        except (ValueError, TypeError):
+            top_k = getattr(current_app, "search_top_k", 4)
+
         matches = match_fingerprint(
             query_hashes,
             current_app.storage,
-            top_k=5,
+            top_k=top_k,
             hop_length=hop,
             sr=sr,
         )
@@ -333,3 +340,75 @@ def get_stats():
 def health_check():
     """Liveness probe."""
     return jsonify({"status": "healthy", "timestamp": time.time()})
+
+
+# ---------------------------------------------------------------------------
+# Settings (runtime-configurable search parameters)
+# ---------------------------------------------------------------------------
+
+@api_bp.route("/settings", methods=["GET"])
+def get_settings():
+    """Return current runtime settings."""
+    return jsonify({
+        "top_k": getattr(current_app, "search_top_k", 4),
+    })
+
+
+@api_bp.route("/settings", methods=["PUT"])
+def update_settings():
+    """Update runtime settings.
+
+    Body: {"top_k": <int>}
+    """
+    data = request.get_json(silent=True) or {}
+
+    if "top_k" in data:
+        try:
+            val = int(data["top_k"])
+            if val < 1 or val > 50:
+                return format_error_response("top_k must be between 1 and 50", 400)
+            current_app.search_top_k = val
+        except (ValueError, TypeError):
+            return format_error_response("top_k must be an integer", 400)
+
+    return jsonify({
+        "message": "Settings updated",
+        "top_k": getattr(current_app, "search_top_k", 4),
+    })
+
+
+# ---------------------------------------------------------------------------
+# Audio playback
+# ---------------------------------------------------------------------------
+
+@api_bp.route("/songs/<song_id>/play", methods=["GET"])
+def play_song(song_id: str):
+    """Stream the audio file for a given song.
+
+    Looks up the filepath from song metadata and returns the file via
+    send_file with the correct MIME type.
+    """
+    try:
+        meta = current_app.storage.get_song_metadata(song_id)
+        if meta is None:
+            return format_error_response("Song not found", 404)
+
+        filepath = meta.get("filepath", "")
+        # Resolve relative paths against CWD (project root), not Flask app dir
+        filepath = os.path.abspath(filepath)
+        if not filepath or not os.path.isfile(filepath):
+            return format_error_response("Audio file not found on disk", 404)
+
+        mime_type, _ = mimetypes.guess_type(filepath)
+        if mime_type is None:
+            mime_type = "application/octet-stream"
+
+        return send_file(
+            filepath,
+            mimetype=mime_type,
+            as_attachment=False,
+            download_name=os.path.basename(filepath),
+        )
+    except Exception as exc:
+        current_app.logger.error(f"play_song error: {exc}")
+        return format_error_response(str(exc), 500)

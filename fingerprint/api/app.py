@@ -84,6 +84,9 @@ def create_app(config_name: str = "development") -> Flask:
     # Threads update this dict directly; GIL protects individual dict ops.
     app.jobs = {}
 
+    # Runtime-configurable search settings (updated via /api/v1/settings)
+    app.search_top_k = 4
+
     logger.info(f"Storage backend: {storage_type}")
 
     # ------------------------------------------------------------------

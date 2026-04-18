@@ -3,6 +3,10 @@
 > Google-like audio search for your private audio library.  
 > Upload a 3-second clip and instantly find where it appears across thousands of files.
 
+<p align="center">
+  <img src="assets/Header.png" alt="AudioFP Banner" width="800" />
+</p>
+
 AudioFP is a production-ready, self-hosted audio fingerprinting platform. It combines a high-accuracy Shazam-style matching engine with a clean web interface, letting you build a searchable audio knowledge base from your own files - no cloud, no transcription, no API keys required.
 
 ---
@@ -22,7 +26,7 @@ AudioFP is a production-ready, self-hosted audio fingerprinting platform. It com
 
 ## Quick Start
 
-**Prerequisites** — install [FFmpeg](https://ffmpeg.org/) (or [SoX](https://sourceforge.net/projects/sox/)) so the platform can decode all supported audio formats:
+**Prerequisites** - install [FFmpeg](https://ffmpeg.org/) (or [SoX](https://sourceforge.net/projects/sox/)) so the platform can decode all supported audio formats:
 
 ```bash
 # macOS
@@ -90,6 +94,26 @@ The **Stats** tab shows total songs, total fingerprints, unique hashes, and the 
 
 ---
 
+## UI Screenshots
+
+### Search View
+
+Drop an audio or video clip into the search zone. AudioFP fingerprints the clip and returns ranked matches with confidence scores, timestamps, and metadata - all in milliseconds.
+
+<p align="center">
+  <img src="assets/Search-Page.png" alt="AudioFP Search View – showing search results with confidence scores and match timestamps" width="800" />
+</p>
+
+### Library / Knowledge Base View
+
+Upload individual audio or video files, or point to a local folder for batch indexing. Every indexed file appears in a browsable grid with duration, fingerprint count, and format badges.
+
+<p align="center">
+  <img src="assets/Knowledge-Base-Page.png" alt="AudioFP Library View – showing indexed songs with metadata and management controls" width="800" />
+</p>
+
+---
+
 ## Supported Formats
 
 MP3 · WAV · FLAC · M4A · OGG · AAC · WMA · OPUS
@@ -99,18 +123,6 @@ MP3 · WAV · FLAC · M4A · OGG · AAC · WMA · OPUS
 ## REST API
 
 The full API lives under `/api/v1`. See [docs/API.md](docs/API.md) for complete reference.
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/v1/search` | Search with an audio clip |
-| `POST` | `/api/v1/upload` | Upload & index a single file |
-| `POST` | `/api/v1/index` | Index all files in a directory |
-| `GET`  | `/api/v1/jobs/<id>` | Job status and progress |
-| `GET`  | `/api/v1/songs` | List all indexed songs |
-| `GET`  | `/api/v1/songs/<id>` | Get song metadata |
-| `DELETE` | `/api/v1/songs/<id>` | Remove a song |
-| `GET`  | `/api/v1/stats` | Database statistics |
-| `GET`  | `/api/v1/health` | Health check |
 
 ---
 
@@ -131,18 +143,14 @@ Edit `config/development.py` (dev) or `config/production.py` (prod) to change de
 
 ## Architecture
 
-```
-Browser / API client
-       │
-  Flask REST API  (/api/v1/*)
-       │
-  ┌────┴────────────────────────────┐
-  │  Fingerprint Pipeline            │
-  │  Audio → STFT → Peaks → Hashes  │
-  └────┬────────────────────────────┘
-       │
-  SQLite (WAL · covering index · batch lookup)
-```
+<p align="center">
+  <img src="assets/Architecture.png" alt="AudioFP Architecture Diagram – showing the training/indexing flow and the application/search flow" width="800" />
+</p>
+
+The platform has two main data flows:
+
+1. **Training & Indexing** - Audio files are loaded, preprocessed, passed through spectral peak extraction and hash generation, then stored in the fingerprint database.
+2. **Application & Search** - User query clips follow the same fingerprinting pipeline, and the matcher queries the database to score and return the best matches via the Flask REST API.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full algorithm walkthrough.
 
