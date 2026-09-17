@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check fingerprint tests run.py
+      - run: ruff format --check fingerprint tests run.py
+
+  test:
+    name: Tests (${{ matrix.os }}, py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.10", "3.12", "3.13"]
+        exclude:
+          - os: windows-latest
+            python: "3.10"
+          - os: macos-latest
+            python: "3.10"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - name: Install ffmpeg (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - run: pip install -e ".[dev]"
+      - run: audiofp doctor
+      - run: pytest -q --cov=fingerprint --cov-report=term-missing
+      - name: Scale test (memory stays flat on a 30-minute file)
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
+        run: pytest -q -m slow tests/test_scale.py
+
+  postgres:
+    name: Storage contract (PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: audiofp
+          POSTGRES_PASSWORD: audiofp
+          POSTGRES_DB: audiofp
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U audiofp"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev,postgres]"
+      - run: pytest -q tests/test_storage.py
+        env:
+          AUDIOFP_TEST_POSTGRES_DSN: postgresql://audiofp:audiofp@localhost:5432/audiofp
+
+  docker:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t audiofp:ci -f docker/Dockerfile .
+      - name: Smoke test the image
+        run: |
+          docker run -d --name audiofp -p 5000:5000 audiofp:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:5000/api/v1/health; then exit 0; fi
+            sleep 2
+          done
+          docker logs audiofp
+          exit 1

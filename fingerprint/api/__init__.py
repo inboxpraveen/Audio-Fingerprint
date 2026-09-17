@@ -1,6 +1,6 @@
-"""Flask REST API for audio fingerprint system."""
+"""Flask REST API and bundled web UI."""
 
 from .app import create_app
+from .runtime import Runtime
 
-__all__ = ['create_app']
-
+__all__ = ["Runtime", "create_app"]

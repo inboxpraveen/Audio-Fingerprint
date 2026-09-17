@@ -1,0 +1,92 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "audiofp"
+version = "2.0.0"
+description = "Self-hosted audio fingerprinting: identify clips and find audio patterns across a private library."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [{ name = "Praveen Kumar" }]
+keywords = ["audio", "fingerprint", "shazam", "audio-search", "call-center", "qa"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Framework :: Flask",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Sound/Audio :: Analysis",
+]
+dependencies = [
+    "flask>=3.0,<4",
+    "flask-cors>=4.0",
+    "werkzeug>=3.0,<4",
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "soundfile>=0.12",
+    "soxr>=0.3",
+    "waitress>=2.1",
+]
+
+[project.optional-dependencies]
+postgres = ["psycopg[binary,pool]>=3.1"]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=4",
+    "ruff>=0.5",
+    "psutil>=5.9",
+]
+gunicorn = ["gunicorn>=21"]
+
+[project.scripts]
+audiofp = "fingerprint.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/inboxpraveen/Audio-Fingerprint"
+Documentation = "https://github.com/inboxpraveen/Audio-Fingerprint/tree/main/docs"
+Issues = "https://github.com/inboxpraveen/Audio-Fingerprint/issues"
+
+[tool.setuptools.packages.find]
+include = ["fingerprint*"]
+
+[tool.setuptools.package-data]
+fingerprint = ["static/*", "static/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m 'not slow' -p no:cacheprovider"
+markers = ["slow: long-running scale tests (run with -m slow)"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.coverage.run]
+source = ["fingerprint"]
+omit = ["fingerprint/storage/postgres_store.py"]
+
+[tool.ruff]
+line-length = 160
+target-version = "py310"
+extend-exclude = ["assets", "data"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "C4", "SIM", "RUF"]
+ignore = [
+    "E501",   # line length is handled by the formatter's judgement
+    "B008",   # function calls in argument defaults (Settings.field metadata)
+    "B905",   # zip(strict=...) everywhere is noise; lengths are asserted where it matters
+    "SIM105", # try/except/pass with a comment reads better than contextlib.suppress here
+    "SIM108", # ternaries are not always clearer
+    "RUF005", # list concatenation is fine
+    "RUF012", # mutable class attributes on dataclass-like classes
+    "UP007",  # keep `X | None` style consistent with runtime annotations
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011", "SIM117", "RUF001", "RUF005"]

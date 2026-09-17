@@ -1,2324 +1,302 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AudioFP — Audio Intelligence Platform</title>
+  <meta name="color-scheme" content="dark light" />
+  <title>AudioFP</title>
+  <meta name="description" content="Self-hosted audio fingerprinting: identify clips and find audio patterns across your private library." />
   <link rel="icon" type="image/svg+xml"
-    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%237c3aed'/%3E%3Cpath d='M9 18V5l12-2v13' stroke='white' stroke-width='2.5' stroke-linecap='round' fill='none'/%3E%3Ccircle cx='6' cy='18' r='3' fill='white'/%3E%3Ccircle cx='18' cy='16' r='3' fill='white'/%3E%3C/svg%3E" />
-  <style>
-    /* ── Reset ─────────────────────────────────────────────────────────── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    /* ── Design tokens (constant) ──────────────────────────────────────── */
-    :root {
-      --accent:       #7c3aed;
-      --accent-glow:  rgba(124, 58, 237, .28);
-      --green:        #10b981;
-      --green-dim:    rgba(16, 185, 129, .12);
-      --red:          #ef4444;
-      --red-dim:      rgba(239, 68, 68, .12);
-      --yellow:       #f59e0b;
-      --indigo:       #6366f1;
-      --indigo-dim:   rgba(99, 102, 241, .12);
-      --r:            12px;
-      --r-sm:          8px;
-      --r-xs:          6px;
-      --sidebar-w:   240px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
-    }
-
-    /* ── Dark theme ────────────────────────────────────────────────────── */
-    [data-theme="dark"] {
-      --bg:           #09090f;
-      --bg2:          #0e0e17;
-      --surface:      #14141e;
-      --surface2:     #1c1c28;
-      --surface3:     #242434;
-      --border:       #252535;
-      --border-sub:   rgba(255, 255, 255, .05);
-      --text:         #ededf5;
-      --text2:        #8585a8;
-      --muted:        #48486a;
-      --accent-soft:  #a78bfa;
-      --accent-dim:   rgba(124, 58, 237, .14);
-      --sidebar-bg:   #0c0c15;
-      --nav-bg:       rgba(9, 9, 15, .88);
-      --shadow:       0 4px 24px rgba(0, 0, 0, .4);
-    }
-
-    /* ── Light theme ───────────────────────────────────────────────────── */
-    [data-theme="light"] {
-      --bg:           #f2f3fb;
-      --bg2:          #e8e9f5;
-      --surface:      #ffffff;
-      --surface2:     #f6f7fd;
-      --surface3:     #ecedf8;
-      --border:       #ddddf0;
-      --border-sub:   rgba(0, 0, 0, .06);
-      --text:         #111122;
-      --text2:        #55557a;
-      --muted:        #9090b0;
-      --accent-soft:  #6d28d9;
-      --accent-dim:   rgba(124, 58, 237, .08);
-      --sidebar-bg:   #ffffff;
-      --nav-bg:       rgba(255, 255, 255, .92);
-      --shadow:       0 4px 24px rgba(0, 0, 0, .08);
-    }
-
-    /* ── Base ──────────────────────────────────────────────────────────── */
-    html, body { height: 100%; }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      line-height: 1.5;
-    }
-
-    /* Smooth theme transitions on key surfaces */
-    body, .sidebar, .mobile-topbar, .surface-trans,
-    .drop-zone, .drop-zone-compact, .file-bar, .result-card,
-    .best-match-card, .song-card, .job-card, .upload-panel,
-    .text-input, .stat-row, .lib-toolbar, .mobile-tabs {
-      transition: background-color .25s ease, border-color .2s ease, color .2s ease;
-    }
-
-    /* ── App shell ─────────────────────────────────────────────────────── */
-    .app-shell {
-      display: flex;
-      min-height: 100vh;
-    }
-
-    /* ═══════════════════════════════════════════════════════════════════ */
-    /*  SIDEBAR                                                            */
-    /* ═══════════════════════════════════════════════════════════════════ */
-    .sidebar {
-      width: var(--sidebar-w);
-      flex-shrink: 0;
-      background: var(--sidebar-bg);
-      border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      position: sticky;
-      top: 0;
-      height: 100vh;
-      overflow-y: auto;
-      scrollbar-width: none;
-    }
-    .sidebar::-webkit-scrollbar { display: none; }
-
-    /* Logo */
-    .sidebar-logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 18px 16px 12px;
-      font-size: 16px;
-      font-weight: 750;
-      letter-spacing: -.35px;
-      color: var(--text);
-      user-select: none;
-    }
-
-    .logo-icon {
-      width: 34px;
-      height: 34px;
-      border-radius: 9px;
-      background: var(--accent);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      flex-shrink: 0;
-      box-shadow: 0 3px 12px var(--accent-glow);
-    }
-
-    .logo-sub {
-      font-size: 10px;
-      font-weight: 400;
-      color: var(--muted);
-      letter-spacing: .2px;
-      display: block;
-      margin-top: -1px;
-    }
-
-    /* Nav */
-    .sidebar-nav {
-      padding: 4px 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .nav-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 9px 12px;
-      border-radius: var(--r-sm);
-      border: none;
-      cursor: pointer;
-      font-size: 13.5px;
-      font-weight: 500;
-      background: transparent;
-      color: var(--text2);
-      transition: background .15s, color .15s;
-      text-align: left;
-      width: 100%;
-    }
-    .nav-item svg { flex-shrink: 0; opacity: .75; }
-    .nav-item:hover { background: var(--surface2); color: var(--text); }
-    .nav-item.active {
-      background: var(--accent-dim);
-      color: var(--accent-soft);
-      font-weight: 600;
-    }
-    .nav-item.active svg { opacity: 1; }
-
-    /* Divider & section label */
-    .sidebar-sep {
-      height: 1px;
-      background: var(--border);
-      margin: 10px 16px;
-    }
-
-    .sidebar-label {
-      padding: 0 16px 5px;
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .9px;
-      color: var(--muted);
-    }
-
-    /* Stats */
-    .sidebar-stats {
-      padding: 0 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
-
-    .stat-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 8px 10px;
-      border-radius: var(--r-sm);
-      background: var(--surface2);
-      border: 1px solid var(--border-sub);
-    }
-
-    .stat-row-label {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      font-size: 12px;
-      color: var(--text2);
-    }
-    .stat-row-label svg { color: var(--accent-soft); flex-shrink: 0; }
-
-    .stat-row-value {
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--text);
-    }
-
-    /* Footer */
-    .sidebar-footer {
-      margin-top: auto;
-      padding: 12px 14px;
-      border-top: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
-    .status-pill {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: var(--text2);
-      min-width: 0;
-      overflow: hidden;
-    }
-
-    .status-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--green);
-      box-shadow: 0 0 7px var(--green);
-      flex-shrink: 0;
-    }
-    .status-dot.warn  { background: var(--yellow); box-shadow: 0 0 7px var(--yellow); }
-    .status-dot.error { background: var(--red);    box-shadow: 0 0 7px var(--red); }
-
-    .theme-btn {
-      width: 32px;
-      height: 32px;
-      border-radius: var(--r-sm);
-      border: 1px solid var(--border);
-      background: var(--surface2);
-      color: var(--text2);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all .15s;
-      flex-shrink: 0;
-    }
-    .theme-btn:hover {
-      background: var(--accent-dim);
-      border-color: var(--accent);
-      color: var(--accent-soft);
-    }
-
-    /* ═══════════════════════════════════════════════════════════════════ */
-    /*  MOBILE TOP BAR                                                     */
-    /* ═══════════════════════════════════════════════════════════════════ */
-    .mobile-topbar {
-      display: none;
-      position: sticky;
-      top: 0;
-      z-index: 200;
-      height: 52px;
-      background: var(--nav-bg);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      border-bottom: 1px solid var(--border);
-      padding: 0 16px;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .mobile-logo {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--text);
-    }
-
-    .mobile-topbar-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    /* ═══════════════════════════════════════════════════════════════════ */
-    /*  MOBILE BOTTOM TABS                                                 */
-    /* ═══════════════════════════════════════════════════════════════════ */
-    .mobile-tabs {
-      display: none;
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: var(--nav-bg);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      border-top: 1px solid var(--border);
-      padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
-      z-index: 200;
-      justify-content: center;
-    }
-
-    .mobile-tab {
-      flex: 1;
-      max-width: 140px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 3px;
-      padding: 5px 4px;
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      color: var(--muted);
-      font-size: 10.5px;
-      font-weight: 500;
-      transition: color .15s;
-      border-radius: var(--r-sm);
-    }
-    .mobile-tab svg { width: 22px; height: 22px; }
-    .mobile-tab.active { color: var(--accent-soft); }
-
-    /* ═══════════════════════════════════════════════════════════════════ */
-    /*  MAIN CONTENT                                                       */
-    /* ═══════════════════════════════════════════════════════════════════ */
-    .content {
-      flex: 1;
-      min-width: 0;
-      padding: 26px 30px 70px;
-    }
-
-    .view { display: none; }
-    .view.active { display: block; }
-
-    /* Page header */
-    .page-header {
-      margin-bottom: 22px;
-    }
-    .page-header h1 {
-      font-size: 23px;
-      font-weight: 750;
-      letter-spacing: -.4px;
-      margin-bottom: 4px;
-    }
-    .page-header p {
-      font-size: 13px;
-      color: var(--text2);
-    }
-
-    /* ═══════════════════════════════════════════════════════════════════ */
-    /*  SEARCH DROP ZONE — Large, centered                                 */
-    /* ═══════════════════════════════════════════════════════════════════ */
-    .drop-zone {
-      position: relative;
-      border: 2px dashed var(--border);
-      border-radius: var(--r);
-      padding: 40px 24px 32px;
-      cursor: pointer;
-      background: var(--surface);
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      text-align: center;
-    }
-
-    /* Radial glow on hover */
-    .drop-zone::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      opacity: 0;
-      background: radial-gradient(ellipse at 50% 110%, var(--accent-glow), transparent 60%);
-      transition: opacity .35s;
-      pointer-events: none;
-    }
-    .drop-zone:hover::before, .drop-zone.hover::before { opacity: 1; }
-    .drop-zone:hover, .drop-zone.hover {
-      border-color: var(--accent);
-      border-style: solid;
-    }
-
-    .drop-zone input[type=file] {
-      position: absolute;
-      inset: 0;
-      opacity: 0;
-      cursor: pointer;
-      width: 100%;
-      height: 100%;
-    }
-
-    /* Animated waveform bars */
-    .dz-wave {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      height: 48px;
-      margin-bottom: 6px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .dz-bar {
-      width: 3px;
-      border-radius: 2px;
-      background: var(--accent);
-      animation: wave-idle 2s ease-in-out infinite;
-      transform-origin: bottom center;
-    }
-
-    .dz-bar:nth-child(1)  { height: 14px; animation-delay:  0.00s; }
-    .dz-bar:nth-child(2)  { height: 26px; animation-delay:  0.12s; }
-    .dz-bar:nth-child(3)  { height: 38px; animation-delay:  0.24s; }
-    .dz-bar:nth-child(4)  { height: 44px; animation-delay:  0.36s; }
-    .dz-bar:nth-child(5)  { height: 48px; animation-delay:  0.48s; }
-    .dz-bar:nth-child(6)  { height: 36px; animation-delay:  0.60s; }
-    .dz-bar:nth-child(7)  { height: 42px; animation-delay:  0.72s; }
-    .dz-bar:nth-child(8)  { height: 28px; animation-delay:  0.84s; }
-    .dz-bar:nth-child(9)  { height: 40px; animation-delay:  0.96s; }
-    .dz-bar:nth-child(10) { height: 32px; animation-delay:  1.08s; }
-    .dz-bar:nth-child(11) { height: 22px; animation-delay:  1.20s; }
-    .dz-bar:nth-child(12) { height: 14px; animation-delay:  1.32s; }
-
-    @keyframes wave-idle {
-      0%,100% { transform: scaleY(1.0); opacity: .4; }
-      50%      { transform: scaleY(.45); opacity: .75; }
-    }
-
-    .drop-zone:hover .dz-bar, .drop-zone.hover .dz-bar {
-      animation: wave-active .65s ease-in-out infinite;
-    }
-
-    @keyframes wave-active {
-      0%,100% { transform: scaleY(1.0); opacity: .9; }
-      50%      { transform: scaleY(.35); opacity: 1; }
-    }
-
-    .dz-title {
-      font-size: 15px;
-      font-weight: 650;
-      color: var(--text);
-      position: relative;
-      z-index: 1;
-    }
-
-    .dz-sub {
-      font-size: 12.5px;
-      color: var(--text2);
-      position: relative;
-      z-index: 1;
-    }
-
-    .dz-formats {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 4px;
-      position: relative;
-      z-index: 1;
-      margin-top: 2px;
-    }
-
-    .fmt-pill {
-      padding: 2px 8px;
-      border-radius: 4px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      font-size: 10px;
-      color: var(--muted);
-      font-weight: 600;
-      letter-spacing: .3px;
-    }
-
-    /* ═══════════════════════════════════════════════════════════════════ */
-    /*  FILE BAR                                                           */
-    /* ═══════════════════════════════════════════════════════════════════ */
-    .file-bar {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 14px;
-      margin-top: 12px;
-      background: var(--surface);
-      border-radius: var(--r-sm);
-      border: 1px solid var(--border);
-    }
-
-    .file-bar-icon {
-      width: 36px;
-      height: 36px;
-      border-radius: 9px;
-      flex-shrink: 0;
-      background: var(--accent-dim);
-      border: 1px solid rgba(124, 58, 237, .3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--accent-soft);
-    }
-
-    .file-bar-info { flex: 1; min-width: 0; }
-
-    .file-bar-name {
-      font-size: 13px;
-      font-weight: 500;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .file-bar-size {
-      font-size: 11px;
-      color: var(--text2);
-      margin-top: 1px;
-    }
-
-    .icon-btn {
-      width: 28px;
-      height: 28px;
-      border-radius: var(--r-sm);
-      border: 1px solid transparent;
-      cursor: pointer;
-      background: transparent;
-      color: var(--muted);
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      line-height: 1;
-      transition: all .15s;
-    }
-    .icon-btn:hover {
-      background: var(--red-dim);
-      color: var(--red);
-      border-color: rgba(239, 68, 68, .25);
-    }
-
-    /* ═══════════════════════════════════════════════════════════════════ */
-    /*  BUTTONS                                                            */
-    /* ═══════════════════════════════════════════════════════════════════ */
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      padding: 9px 20px;
-      border-radius: var(--r-sm);
-      border: none;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 650;
-      transition: all .15s;
-      text-decoration: none;
-      white-space: nowrap;
-      letter-spacing: -.1px;
-    }
-
-    .btn-primary {
-      background: var(--accent);
-      color: #fff;
-      box-shadow: 0 2px 16px var(--accent-glow);
-    }
-    .btn-primary:hover:not(:disabled) {
-      background: #6d28d9;
-      box-shadow: 0 4px 24px var(--accent-glow);
-      transform: translateY(-1px);
-    }
-    .btn-primary:active:not(:disabled) { transform: none; }
-    .btn-primary:disabled {
-      opacity: .45;
-      cursor: not-allowed;
-      box-shadow: none;
-    }
-
-    .btn-ghost {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--text2);
-      font-size: 12.5px;
-      padding: 7px 12px;
-    }
-    .btn-ghost:hover { color: var(--text); background: var(--surface2); }
-
-    /* ═══════════════════════════════════════════════════════════════════ */
-    /*  SEARCH ACTIONS ROW                                                 */
-    /* ═══════════════════════════════════════════════════════════════════ */
-    .search-actions {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-top: 10px;
-    }
-
-    .search-actions .btn-primary {
-      flex: 1;
-      justify-content: center;
-    }
-
-    .topk-wrap {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      flex-shrink: 0;
-    }
-
-    .topk-wrap label {
-      font-size: 12px;
-      color: var(--text2);
-      white-space: nowrap;
-    }
-
-    select {
-      background: var(--surface);
-      color: var(--text);
-      border: 1px solid var(--border);
-      border-radius: var(--r-xs);
-      padding: 8px 10px;
-      font-size: 12px;
-      outline: none;
-      cursor: pointer;
-      transition: border-color .15s;
-    }
-    select:focus { border-color: var(--accent); }
-
-    /* ═══════════════════════════════════════════════════════════════════ */
-    /*  SEARCH RESULTS                                                     */
-    /* ═══════════════════════════════════════════════════════════════════ */
-    .results-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin: 24px 0 14px;
-    }
-
-    .results-header h2 { font-size: 16px; font-weight: 700; }
-
-    .results-meta {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .meta-pill {
-      padding: 3px 9px;
-      border-radius: 20px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      font-size: 11px;
-      color: var(--text2);
-    }
-
-    /* ── Best match hero card ─── */
-    .best-match-card {
-      position: relative;
-      overflow: hidden;
-      background: var(--surface);
-      border: 1px solid var(--accent);
-      border-radius: var(--r);
-      padding: 20px;
-      display: flex;
-      gap: 18px;
-      align-items: flex-start;
-      margin-bottom: 12px;
-      box-shadow: 0 0 28px var(--accent-glow), inset 0 0 60px rgba(124, 58, 237, .04);
-    }
-
-    .best-match-card::after {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, var(--accent), var(--accent-soft));
-    }
-
-    .best-art {
-      width: 66px;
-      height: 66px;
-      border-radius: 10px;
-      flex-shrink: 0;
-      display: flex;
-      align-items: flex-end;
-      justify-content: center;
-      overflow: hidden;
-      padding-bottom: 6px;
-      gap: 3px;
-    }
-
-    .best-art-bar {
-      width: 4px;
-      border-radius: 2px;
-      background: rgba(255,255,255,.75);
-    }
-
-    .best-info { flex: 1; min-width: 0; }
-
-    .best-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 8px;
-      border-radius: 4px;
-      background: var(--accent-dim);
-      border: 1px solid rgba(124, 58, 237, .3);
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--accent-soft);
-      text-transform: uppercase;
-      letter-spacing: .6px;
-      margin-bottom: 7px;
-    }
-
-    .best-title {
-      font-size: 18px;
-      font-weight: 750;
-      letter-spacing: -.3px;
-      line-height: 1.3;
-      word-break: break-word;
-    }
-
-    .best-artist {
-      font-size: 13px;
-      color: var(--text2);
-      margin-top: 3px;
-    }
-
-    .best-footer {
-      margin-top: 12px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .best-score-wrap {
-      text-align: right;
-      flex-shrink: 0;
-    }
-
-    .best-score {
-      font-size: 46px;
-      font-weight: 800;
-      line-height: 1;
-      color: var(--accent-soft);
-      letter-spacing: -3px;
-    }
-
-    .best-score-label {
-      font-size: 10px;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: .6px;
-      margin-top: 3px;
-    }
-
-    /* ── Other results grid ─── */
-    .results-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-      gap: 10px;
-    }
-
-    .result-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--r);
-      padding: 15px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .result-card:hover {
-      border-color: rgba(124, 58, 237, .4);
-      box-shadow: 0 4px 20px rgba(0,0,0,.1);
-    }
-
-    .result-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
-    .result-title {
-      font-size: 13px;
-      font-weight: 650;
-      line-height: 1.35;
-      word-break: break-word;
-    }
-
-    .result-artist {
-      font-size: 11.5px;
-      color: var(--text2);
-      margin-top: 2px;
-    }
-
-    .result-score { text-align: right; flex-shrink: 0; }
-
-    .score-pct {
-      font-size: 22px;
-      font-weight: 800;
-      color: var(--accent-soft);
-      line-height: 1;
-    }
-
-    .score-label {
-      font-size: 9.5px;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: .5px;
-    }
-
-    .conf-track {
-      height: 3px;
-      background: var(--surface3);
-      border-radius: 2px;
-      overflow: hidden;
-    }
-
-    .conf-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--accent), var(--accent-soft));
-      border-radius: 2px;
-      transition: width .6s cubic-bezier(.4, 0, .2, 1);
-    }
-
-    /* Tags */
-    .tags {
-      display: flex;
-      gap: 5px;
-      flex-wrap: wrap;
-    }
-
-    .tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-      padding: 3px 8px;
-      border-radius: 5px;
-      font-size: 10.5px;
-      color: var(--text2);
-      background: var(--surface2);
-      border: 1px solid var(--border-sub);
-    }
-    .tag svg { color: var(--accent-soft); flex-shrink: 0; }
-
-    /* No results */
-    .no-results {
-      text-align: center;
-      padding: 56px 20px;
-      background: var(--surface);
-      border-radius: var(--r);
-      border: 1px dashed var(--border);
-      margin-top: 16px;
-    }
-    .no-results-emoji { font-size: 38px; margin-bottom: 14px; }
-    .no-results h3 { font-size: 16px; font-weight: 650; margin-bottom: 7px; }
-    .no-results p { font-size: 13px; color: var(--text2); max-width: 300px; margin: 0 auto; }
-
-    /* ═══════════════════════════════════════════════════════════════════ */
-    /*  LIBRARY — UPLOAD PANELS                                            */
-    /* ═══════════════════════════════════════════════════════════════════ */
-    .upload-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 14px;
-    }
-
-    .upload-panel {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--r);
-      overflow: hidden;
-    }
-
-    .panel-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 11px 14px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .panel-header h3 { font-size: 13px; font-weight: 650; }
-
-    .panel-icon {
-      width: 28px;
-      height: 28px;
-      border-radius: 7px;
-      background: var(--accent-dim);
-      border: 1px solid rgba(124, 58, 237, .25);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--accent-soft);
-      flex-shrink: 0;
-    }
-
-    .panel-body { padding: 14px; }
-
-    /* Compact drop zone for library panel */
-    .drop-zone-compact {
-      position: relative;
-      border: 2px dashed var(--border);
-      border-radius: var(--r-sm);
-      padding: 18px 14px;
-      cursor: pointer;
-      background: var(--surface2);
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      gap: 13px;
-      transition: border-color .2s;
-    }
-
-    .drop-zone-compact::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      opacity: 0;
-      background: radial-gradient(ellipse at 50% 110%, var(--accent-glow), transparent 60%);
-      transition: opacity .3s;
-      pointer-events: none;
-    }
-    .drop-zone-compact:hover::before, .drop-zone-compact.hover::before { opacity: 1; }
-    .drop-zone-compact:hover, .drop-zone-compact.hover {
-      border-color: var(--accent);
-      border-style: solid;
-    }
-
-    .drop-zone-compact input[type=file] {
-      position: absolute;
-      inset: 0;
-      opacity: 0;
-      cursor: pointer;
-      width: 100%;
-      height: 100%;
-    }
-
-    .dzc-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 9px;
-      background: var(--accent-dim);
-      border: 1px solid rgba(124, 58, 237, .3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--accent-soft);
-      flex-shrink: 0;
-      position: relative;
-      z-index: 1;
-    }
-
-    .dzc-text { position: relative; z-index: 1; }
-    .dzc-text h4 { font-size: 13px; font-weight: 650; }
-    .dzc-text p { font-size: 11.5px; color: var(--text2); margin-top: 2px; }
-
-    /* Directory input */
-    .dir-wrap {
-      display: flex;
-      gap: 8px;
-      margin-top: 8px;
-    }
-
-    .text-input {
-      flex: 1;
-      padding: 9px 12px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--r-sm);
-      color: var(--text);
-      font-size: 12.5px;
-      outline: none;
-      transition: border-color .15s;
-      min-width: 0;
-    }
-    .text-input::placeholder { color: var(--muted); }
-    .text-input:focus { border-color: var(--accent); }
-
-    /* ═══════════════════════════════════════════════════════════════════ */
-    /*  JOB CARDS                                                          */
-    /* ═══════════════════════════════════════════════════════════════════ */
-    .job-list {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      margin-bottom: 4px;
-    }
-
-    .job-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--r-sm);
-      padding: 12px 14px;
-    }
-
-    .job-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 7px;
-    }
-
-    .job-name {
-      font-size: 12.5px;
-      font-weight: 500;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 68%;
-    }
-
-    .job-status { font-size: 11.5px; font-weight: 650; }
-    .job-status.running   { color: var(--accent-soft); }
-    .job-status.completed { color: var(--green); }
-    .job-status.failed    { color: var(--red); }
-    .job-status.pending   { color: var(--muted); }
-
-    .progress-track {
-      height: 4px;
-      background: var(--surface3);
-      border-radius: 3px;
-      overflow: hidden;
-    }
-
-    .progress-fill {
-      height: 100%;
-      border-radius: 3px;
-      background: linear-gradient(90deg, var(--accent), var(--accent-soft));
-      transition: width .3s;
-    }
-    .progress-fill.done  { background: var(--green); }
-    .progress-fill.error { background: var(--red); }
-
-    .job-sub { font-size: 11px; color: var(--text2); margin-top: 5px; }
-
-    /* ═══════════════════════════════════════════════════════════════════ */
-    /*  LIBRARY TOOLBAR                                                    */
-    /* ═══════════════════════════════════════════════════════════════════ */
-    .lib-toolbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 14px;
-    }
-
-    .lib-count { font-size: 13px; color: var(--text2); font-weight: 500; }
-
-    /* ═══════════════════════════════════════════════════════════════════ */
-    /*  SONG CARDS                                                         */
-    /* ═══════════════════════════════════════════════════════════════════ */
-    .songs-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-      gap: 10px;
-    }
-
-    .song-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--r);
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-    .song-card:hover {
-      border-color: rgba(124, 58, 237, .4);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, .1);
-    }
-
-    .song-art {
-      height: 78px;
-      display: flex;
-      align-items: flex-end;
-      justify-content: center;
-      padding-bottom: 8px;
-      gap: 3px;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .song-art-bar {
-      width: 4px;
-      border-radius: 2px;
-      background: rgba(255, 255, 255, .72);
-    }
-
-    .song-body {
-      padding: 11px 12px;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 7px;
-    }
-
-    .song-title {
-      font-size: 12.5px;
-      font-weight: 650;
-      line-height: 1.3;
-      word-break: break-word;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-
-    .song-artist {
-      font-size: 11px;
-      color: var(--text2);
-      margin-top: -4px;
-    }
-
-    .song-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
-      margin-top: auto;
-    }
-
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 10px;
-      background: var(--surface2);
-      color: var(--text2);
-      border: 1px solid var(--border-sub);
-    }
-    .badge.video-badge {
-      background: var(--indigo-dim);
-      color: #818cf8;
-      border-color: rgba(99, 102, 241, .3);
-    }
-
-    .song-footer {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 4px;
-      padding: 7px 10px;
-      border-top: 1px solid var(--border);
-    }
-
-    .play-btn {
-      width: 28px;
-      height: 28px;
-      border-radius: 7px;
-      border: 1px solid var(--border);
-      cursor: pointer;
-      background: transparent;
-      color: var(--accent-soft);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all .15s;
-    }
-    .play-btn:hover {
-      background: var(--accent-dim);
-      border-color: rgba(124, 58, 237, .4);
-    }
-    .play-btn.playing {
-      background: var(--accent-dim);
-      border-color: var(--accent);
-    }
-
-    .del-btn {
-      width: 28px;
-      height: 28px;
-      border-radius: 7px;
-      border: 1px solid var(--border);
-      cursor: pointer;
-      background: transparent;
-      color: var(--muted);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all .15s;
-    }
-    .del-btn:hover {
-      background: var(--red-dim);
-      color: var(--red);
-      border-color: rgba(239, 68, 68, .3);
-    }
-
-    /* ═══════════════════════════════════════════════════════════════════ */
-    /*  INLINE AUDIO PLAYER                                                */
-    /* ═══════════════════════════════════════════════════════════════════ */
-    .inline-player {
-      padding: 8px 10px;
-      border-top: 1px solid var(--border);
-    }
-
-    .inline-player audio {
-      width: 100%;
-      height: 30px;
-      border-radius: 6px;
-    }
-
-    /* ═══════════════════════════════════════════════════════════════════ */
-    /*  EMPTY STATE                                                        */
-    /* ═══════════════════════════════════════════════════════════════════ */
-    .empty-state {
-      grid-column: 1 / -1;
-      text-align: center;
-      padding: 56px 20px;
-      background: var(--surface);
-      border-radius: var(--r);
-      border: 1px dashed var(--border);
-    }
-    .empty-state-emoji { font-size: 36px; margin-bottom: 12px; }
-    .empty-state h3 { font-size: 16px; font-weight: 650; margin-bottom: 6px; }
-    .empty-state p  { font-size: 13px; color: var(--text2); }
-
-    /* ═══════════════════════════════════════════════════════════════════ */
-    /*  TOASTS                                                             */
-    /* ═══════════════════════════════════════════════════════════════════ */
-    .toast-wrap {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      z-index: 999;
-      pointer-events: none;
-    }
-
-    .toast {
-      padding: 10px 14px;
-      border-radius: var(--r-sm);
-      font-size: 13px;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      min-width: 220px;
-      max-width: 340px;
-      pointer-events: auto;
-      animation: toast-in .2s ease;
-      box-shadow: var(--shadow);
-    }
-
-    .toast.ok   { background: var(--green-dim); color: var(--green); border: 1px solid rgba(16,185,129,.3); }
-    .toast.err  { background: var(--red-dim);   color: var(--red);   border: 1px solid rgba(239,68,68,.3); }
-    .toast.info { background: var(--accent-dim); color: var(--accent-soft); border: 1px solid rgba(124,58,237,.3); }
-
-    @keyframes toast-in {
-      from { transform: translateX(110%); opacity: 0; }
-      to   { transform: none; opacity: 1; }
-    }
-
-    /* ═══════════════════════════════════════════════════════════════════ */
-    /*  SPINNER                                                            */
-    /* ═══════════════════════════════════════════════════════════════════ */
-    .spinner {
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      border: 2px solid rgba(255, 255, 255, .3);
-      border-top-color: #fff;
-      animation: spin .55s linear infinite;
-    }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .hidden { display: none !important; }
-
-    /* ═══════════════════════════════════════════════════════════════════ */
-    /*  RESPONSIVE                                                         */
-    /* ═══════════════════════════════════════════════════════════════════ */
-    @media (max-width: 900px) {
-      .sidebar { display: none; }
-      .mobile-topbar { display: flex; }
-      .mobile-tabs { display: flex; }
-      .content { padding: 16px 16px 88px; }
-      .upload-row { grid-template-columns: 1fr; }
-    }
-
-    @media (max-width: 600px) {
-      .best-match-card { flex-direction: column; gap: 14px; }
-      .best-score-wrap { text-align: left; display: flex; align-items: baseline; gap: 8px; }
-      .best-score { font-size: 38px; }
-      .search-actions { flex-direction: column; }
-      .search-actions .btn-primary { width: 100%; }
-      .results-header { flex-direction: column; align-items: flex-start; gap: 8px; }
-    }
-
-    @media (max-width: 420px) {
-      .dz-formats { display: none; }
-    }
-
-    /* ── Light theme specific overrides ─────────────────────────────── */
-    [data-theme="light"] .best-score { color: var(--accent); }
-    [data-theme="light"] .score-pct  { color: var(--accent); }
-    [data-theme="light"] .best-badge { color: var(--accent); }
-    [data-theme="light"] .tag svg    { color: var(--accent); }
-    [data-theme="light"] .nav-item.active { color: var(--accent); }
-    [data-theme="light"] .mobile-tab.active { color: var(--accent); }
-    [data-theme="light"] .stat-row-label svg { color: var(--accent); }
-    [data-theme="light"] .play-btn  { color: var(--accent); }
-    [data-theme="light"] .file-bar-icon { color: var(--accent); }
-    [data-theme="light"] .dzc-icon  { color: var(--accent); }
-    [data-theme="light"] .panel-icon { color: var(--accent); }
-    [data-theme="light"] .toast.info { color: var(--accent); }
-  </style>
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%237c3aed'/%3E%3Cpath d='M20 44V18l24-4v26' stroke='white' stroke-width='4' stroke-linecap='round' fill='none'/%3E%3Ccircle cx='14' cy='44' r='6' fill='white'/%3E%3Ccircle cx='38' cy='40' r='6' fill='white'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/static/css/app.css" />
 </head>
-
 <body>
+  <a class="skip-link" href="#main" id="skip-link">Skip to content</a>
 
-  <!-- ================================================================ -->
-  <!-- Mobile top bar (< 900px)                                         -->
-  <!-- ================================================================ -->
-  <div class="mobile-topbar">
-    <div class="mobile-logo">
-      <div class="logo-icon" style="width:28px;height:28px;border-radius:7px">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-          <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
-        </svg>
-      </div>
+  <!-- Mobile top bar -->
+  <header class="mobile-topbar">
+    <div class="brand brand-sm">
+      <span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span>
       AudioFP
     </div>
-    <div class="mobile-topbar-right">
-      <div class="status-pill">
-        <div class="status-dot" id="mob-status-dot"></div>
-        <span id="mob-status-text" style="font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px">…</span>
-      </div>
-      <button class="theme-btn" id="theme-btn-mobile" title="Toggle theme" aria-label="Toggle theme"></button>
+    <div class="row gap-2">
+      <span class="status-pill" id="status-pill-mobile"><span class="status-dot"></span><span class="status-text">…</span></span>
+      <button class="icon-btn" data-action="toggle-theme" title="Toggle theme" aria-label="Toggle theme"></button>
     </div>
-  </div>
+  </header>
 
-  <!-- ================================================================ -->
-  <!-- App shell                                                         -->
-  <!-- ================================================================ -->
   <div class="app-shell">
-
-    <!-- ============================================================== -->
-    <!-- Sidebar (desktop only)                                         -->
-    <!-- ============================================================== -->
-    <aside class="sidebar">
-
-      <div class="sidebar-logo">
-        <div class="logo-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
-          </svg>
-        </div>
-        <div>
-          AudioFP
-          <span class="logo-sub">Audio Intelligence</span>
-        </div>
+    <!-- Sidebar -->
+    <aside class="sidebar" aria-label="Primary">
+      <div class="brand">
+        <span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span>
+        <span class="brand-text">AudioFP<small>Audio search &amp; patterns</small></span>
       </div>
 
-      <nav class="sidebar-nav">
-        <button class="nav-item active" data-tab="search">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-          </svg>
-          Search
-        </button>
-        <button class="nav-item" data-tab="library">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/>
-          </svg>
-          Library
-        </button>
+      <nav class="sidebar-nav" aria-label="Views">
+        <a class="nav-item" href="#search" data-view="search">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Search
+        </a>
+        <a class="nav-item" href="#library" data-view="library">
+          <svg viewBox="0 0 24 24"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>Library
+        </a>
+        <a class="nav-item" href="#activity" data-view="activity">
+          <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Activity
+          <span class="nav-badge hidden" id="nav-active-jobs">0</span>
+        </a>
+        <a class="nav-item" href="#settings" data-view="settings">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings
+        </a>
       </nav>
 
-      <div class="sidebar-sep"></div>
-      <div class="sidebar-label">Overview</div>
-
-      <div class="sidebar-stats">
-        <div class="stat-row">
-          <span class="stat-row-label">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
-            </svg>
-            Songs
-          </span>
-          <span class="stat-row-value" id="st-songs">—</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-row-label">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/>
-              <line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/>
-            </svg>
-            Fingerprints
-          </span>
-          <span class="stat-row-value" id="st-hashes">—</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-row-label">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>
-            </svg>
-            Unique
-          </span>
-          <span class="stat-row-value" id="st-unique">—</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-row-label">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <ellipse cx="12" cy="5" rx="9" ry="3"/>
-              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
-              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
-            </svg>
-            Storage
-          </span>
-          <span class="stat-row-value" id="st-type" style="font-size:12px">—</span>
-        </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Library</div>
+        <dl class="stat-list">
+          <div class="stat-row"><dt>Tracks</dt><dd id="st-tracks">—</dd></div>
+          <div class="stat-row"><dt>Fingerprints</dt><dd id="st-hashes">—</dd></div>
+          <div class="stat-row"><dt>Audio indexed</dt><dd id="st-duration">—</dd></div>
+          <div class="stat-row"><dt>Storage</dt><dd id="st-storage">—</dd></div>
+        </dl>
       </div>
-
-      <div style="flex:1"></div>
 
       <div class="sidebar-footer">
-        <div class="status-pill">
-          <div class="status-dot" id="status-dot"></div>
-          <span id="status-text" style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Loading…</span>
-        </div>
-        <button class="theme-btn" id="theme-btn" title="Toggle theme" aria-label="Toggle theme"></button>
+        <span class="status-pill" id="status-pill"><span class="status-dot"></span><span class="status-text">Connecting…</span></span>
+        <button class="icon-btn" data-action="toggle-theme" title="Toggle theme" aria-label="Toggle theme"></button>
       </div>
-
     </aside>
 
-    <!-- ============================================================== -->
-    <!-- Main content                                                    -->
-    <!-- ============================================================== -->
-    <main class="content">
+    <!-- Main -->
+    <main class="content" id="main" tabindex="-1">
 
-      <!-- ============================================================ -->
-      <!-- SEARCH VIEW                                                   -->
-      <!-- ============================================================ -->
-      <div id="view-search" class="view active">
+      <!-- ===================== SEARCH ===================== -->
+      <section class="view" id="view-search" aria-labelledby="search-title">
         <div class="page-header">
-          <h1>Find Audio</h1>
-          <p>Drop a short clip — as little as 3 seconds — to identify it in your library</p>
-        </div>
-
-        <!-- Drop zone -->
-        <div class="drop-zone" id="search-zone">
-          <input type="file" id="search-input" accept="audio/*,video/*" />
-          <div class="dz-wave" aria-hidden="true">
-            <div class="dz-bar"></div><div class="dz-bar"></div><div class="dz-bar"></div>
-            <div class="dz-bar"></div><div class="dz-bar"></div><div class="dz-bar"></div>
-            <div class="dz-bar"></div><div class="dz-bar"></div><div class="dz-bar"></div>
-            <div class="dz-bar"></div><div class="dz-bar"></div><div class="dz-bar"></div>
+          <div>
+            <h1 id="search-title">Search</h1>
+            <p>Identify a clip, or find every place a pattern appears across your library.</p>
           </div>
-          <div class="dz-title">Drop audio or video clip here</div>
-          <div class="dz-sub">or click to browse your files</div>
-          <div class="dz-formats">
-            <span class="fmt-pill">MP3</span>
-            <span class="fmt-pill">WAV</span>
-            <span class="fmt-pill">FLAC</span>
-            <span class="fmt-pill">OGG</span>
-            <span class="fmt-pill">MP4</span>
-            <span class="fmt-pill">MKV</span>
-            <span class="fmt-pill">MOV</span>
-            <span class="fmt-pill">AVI</span>
+          <div class="segmented" role="radiogroup" aria-label="Search mode">
+            <label class="segment"><input type="radio" name="mode" value="identify" checked /><span>Identify clip</span></label>
+            <label class="segment"><input type="radio" name="mode" value="occurrences" /><span>Find all occurrences</span></label>
+          </div>
+        </div>
+        <p class="mode-hint" id="mode-hint"></p>
+
+        <div class="drop-zone" id="search-zone" role="button" tabindex="0" aria-label="Choose an audio or video clip to search with">
+          <input type="file" id="search-input" accept="audio/*,video/*" hidden />
+          <div class="dz-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="dz-title">Drop an audio or video clip</div>
+          <div class="dz-sub">or click to browse · 3 seconds is usually enough</div>
+          <div class="dz-formats" id="search-formats"></div>
+          <div class="dz-actions">
+            <button class="btn btn-ghost" id="record-btn" type="button" title="Record from your microphone">
+              <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+              <span>Record</span>
+            </button>
           </div>
         </div>
 
-        <!-- File selected: bar + search controls -->
-        <div id="search-bar" class="hidden">
-          <div class="file-bar">
-            <div class="file-bar-icon">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
-              </svg>
-            </div>
-            <div class="file-bar-info">
-              <div class="file-bar-name" id="search-fname"></div>
-              <div class="file-bar-size" id="search-fsize"></div>
-            </div>
-            <button class="icon-btn" id="search-clear" title="Clear selection">×</button>
+        <div class="recorder hidden" id="recorder">
+          <span class="rec-dot"></span><span id="rec-time">0:00</span>
+          <button class="btn btn-primary btn-sm" id="rec-stop" type="button">Stop &amp; use</button>
+          <button class="btn btn-ghost btn-sm" id="rec-cancel" type="button">Cancel</button>
+        </div>
+
+        <div class="search-bar hidden" id="search-bar">
+          <div class="file-chip">
+            <span class="file-chip-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span>
+            <span class="file-chip-info"><b id="search-fname"></b><small id="search-fmeta"></small></span>
+            <button class="icon-btn" id="search-clear" title="Clear selection" aria-label="Clear selection">×</button>
           </div>
           <div class="search-actions">
-            <button class="btn btn-primary" id="search-btn">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-              </svg>
-              Search Library
+            <button class="btn btn-primary" id="search-btn" type="button">
+              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Search library
             </button>
-            <div class="topk-wrap">
-              <label for="topk-input">Results:</label>
-              <select id="topk-input">
-                <option value="2">2</option>
-                <option value="4" selected>4</option>
-                <option value="6">6</option>
-                <option value="8">8</option>
-                <option value="10">10</option>
-              </select>
-            </div>
+            <label class="field-inline">Results<select id="opt-topk"><option>1</option><option>3</option><option selected>5</option><option>10</option><option>20</option></select></label>
+            <button class="btn btn-ghost btn-sm" id="adv-toggle" type="button" aria-expanded="false" aria-controls="adv-panel">Thresholds</button>
+          </div>
+          <div class="adv-panel hidden" id="adv-panel">
+            <label class="field">Min confidence<input type="number" id="opt-minconf" min="0" max="1" step="0.01" /><small>Fraction of the matched region's hashes that align (0–1).</small></label>
+            <label class="field">Min aligned hashes<input type="number" id="opt-minaligned" min="1" step="1" /><small>Absolute floor of distinct hashes voting for one offset.</small></label>
+            <label class="field">Min peak ratio<input type="number" id="opt-minratio" min="0" step="0.5" /><small>Spike height vs. histogram background. Chance matches stay below ~8.</small></label>
+            <button class="btn btn-ghost btn-sm" id="adv-reset" type="button">Reset to server defaults</button>
           </div>
         </div>
 
-        <div id="search-results"></div>
-      </div>
+        <div id="search-results" aria-live="polite"></div>
 
-      <!-- ============================================================ -->
-      <!-- LIBRARY VIEW                                                  -->
-      <!-- ============================================================ -->
-      <div id="view-library" class="view">
+        <section class="recent hidden" id="recent-searches" aria-labelledby="recent-title">
+          <h2 id="recent-title" class="h2-sm">Recent searches <span class="muted">(this session)</span></h2>
+          <div id="recent-list" class="recent-list"></div>
+        </section>
+      </section>
+
+      <!-- ===================== LIBRARY ===================== -->
+      <section class="view" id="view-library" aria-labelledby="library-title">
         <div class="page-header">
-          <h1>Knowledge Base</h1>
-          <p>Upload audio or video files — audio is extracted from video automatically</p>
-        </div>
-
-        <!-- Two-column upload panels -->
-        <div class="upload-row">
-
-          <!-- Upload files panel -->
-          <div class="upload-panel">
-            <div class="panel-header">
-              <div class="panel-icon">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="17 8 12 3 7 8"/>
-                  <line x1="12" y1="3" x2="12" y2="15"/>
-                </svg>
-              </div>
-              <h3>Upload Files</h3>
-            </div>
-            <div class="panel-body">
-              <div class="drop-zone-compact" id="lib-zone">
-                <input type="file" id="lib-input" accept="audio/*,video/*" multiple />
-                <div class="dzc-icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="17 8 12 3 7 8"/>
-                    <line x1="12" y1="3" x2="12" y2="15"/>
-                  </svg>
-                </div>
-                <div class="dzc-text">
-                  <h4>Drop files or click to browse</h4>
-                  <p>MP3 · WAV · FLAC · OGG · MP4 · MKV · MOV</p>
-                </div>
-              </div>
-            </div>
+          <div>
+            <h1 id="library-title">Library</h1>
+            <p>Everything that has been fingerprinted. Upload files or index a folder on the server.</p>
           </div>
+        </div>
 
-          <!-- Index folder panel -->
-          <div class="upload-panel">
-            <div class="panel-header">
-              <div class="panel-icon">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-                </svg>
-              </div>
-              <h3>Index Folder</h3>
+        <div class="panel-grid">
+          <section class="panel" aria-labelledby="upload-title">
+            <header class="panel-header"><h3 id="upload-title">Upload files</h3><span class="muted" id="upload-limit"></span></header>
+            <div class="drop-zone drop-zone-sm" id="lib-zone" role="button" tabindex="0" aria-label="Choose files to upload and index">
+              <input type="file" id="lib-input" accept="audio/*,video/*" multiple hidden />
+              <div class="dz-title">Drop files here or click to browse</div>
+              <div class="dz-sub">Duplicates are detected automatically · indexing runs in the background</div>
             </div>
-            <div class="panel-body">
-              <p style="font-size:12.5px;color:var(--text2);margin-bottom:10px;line-height:1.5">
-                Index all audio &amp; video files in a server-side directory path
-              </p>
-              <div class="dir-wrap">
-                <input class="text-input" id="dir-input" placeholder="e.g. /home/user/music" />
-                <button class="btn btn-primary" id="dir-btn">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-                  </svg>
-                  Index
-                </button>
-              </div>
+            <div class="upload-meta">
+              <label class="field-inline">Tags for this batch<input type="text" id="upload-tags" placeholder="e.g. campaign-a, inbound" /></label>
             </div>
+            <ul class="upload-queue" id="upload-queue" aria-label="Upload queue"></ul>
+          </section>
+
+          <section class="panel" aria-labelledby="folder-title" id="folder-panel">
+            <header class="panel-header"><h3 id="folder-title">Index a folder</h3></header>
+            <p class="muted" id="folder-help">Index every supported file below a directory on the server.</p>
+            <form class="dir-form" id="dir-form">
+              <input class="text-input" id="dir-input" placeholder="/path/to/recordings" autocomplete="off" aria-label="Server directory path" />
+              <button class="btn btn-primary" type="submit" id="dir-btn">Index</button>
+            </form>
+            <label class="checkbox"><input type="checkbox" id="dir-recursive" checked /> Include sub-folders</label>
+          </section>
+        </div>
+
+        <div class="toolbar">
+          <div class="search-field">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input type="search" id="lib-search" placeholder="Search title, artist, filename, tag…  (press /)" aria-label="Search library" />
           </div>
-
+          <select id="lib-sort" aria-label="Sort by">
+            <option value="indexed_at:desc">Newest first</option>
+            <option value="indexed_at:asc">Oldest first</option>
+            <option value="title:asc">Title A–Z</option>
+            <option value="title:desc">Title Z–A</option>
+            <option value="duration:desc">Longest</option>
+            <option value="duration:asc">Shortest</option>
+            <option value="num_hashes:desc">Most fingerprints</option>
+          </select>
+          <select id="lib-type" aria-label="Filter by type">
+            <option value="">All types</option><option value="audio">Audio</option><option value="video">Video</option>
+          </select>
+          <select id="lib-perpage" aria-label="Items per page">
+            <option>12</option><option selected>24</option><option>48</option><option>96</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" id="lib-select" type="button">Select</button>
+          <button class="btn btn-ghost btn-sm" id="lib-refresh" type="button" title="Refresh" aria-label="Refresh library">↻</button>
         </div>
 
-        <!-- Active indexing jobs -->
-        <div class="job-list" id="job-list"></div>
-
-        <!-- Library toolbar -->
-        <div class="lib-toolbar">
-          <span class="lib-count" id="lib-count">Loading…</span>
-          <button class="btn btn-ghost" onclick="loadLibrary()">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
-              <path d="M21 3v5h-5"/>
-              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
-              <path d="M8 16H3v5"/>
-            </svg>
-            Refresh
-          </button>
+        <div class="bulk-bar hidden" id="bulk-bar">
+          <span id="bulk-count">0 selected</span>
+          <button class="btn btn-ghost btn-sm" id="bulk-all" type="button">Select page</button>
+          <button class="btn btn-danger btn-sm" id="bulk-delete" type="button">Delete selected</button>
+          <button class="btn btn-ghost btn-sm" id="bulk-cancel" type="button">Done</button>
         </div>
 
-        <div class="songs-grid" id="songs-grid"></div>
-      </div>
+        <p class="muted" id="lib-summary"></p>
+        <div class="track-grid" id="track-grid"></div>
+        <nav class="pager" id="lib-pager" aria-label="Pagination"></nav>
+      </section>
 
+      <!-- ===================== ACTIVITY ===================== -->
+      <section class="view" id="view-activity" aria-labelledby="activity-title">
+        <div class="page-header">
+          <div>
+            <h1 id="activity-title">Activity</h1>
+            <p>Background indexing jobs. History survives restarts; a job interrupted by a restart is marked as such.</p>
+          </div>
+          <div class="row gap-2">
+            <select id="jobs-filter" aria-label="Filter jobs"><option value="">All</option><option value="active">Active</option><option value="completed">Completed</option><option value="failed,interrupted">Failed</option><option value="cancelled">Cancelled</option></select>
+            <button class="btn btn-ghost btn-sm" id="jobs-refresh" type="button" title="Refresh" aria-label="Refresh jobs">↻</button>
+          </div>
+        </div>
+        <div id="jobs-list" class="jobs-list"></div>
+      </section>
+
+      <!-- ===================== SETTINGS ===================== -->
+      <section class="view" id="view-settings" aria-labelledby="settings-title">
+        <div class="page-header"><div><h1 id="settings-title">Settings</h1><p>Client preferences, server search defaults and system information.</p></div></div>
+
+        <div class="settings-grid">
+          <section class="panel" aria-labelledby="s-access">
+            <header class="panel-header"><h3 id="s-access">Access</h3></header>
+            <p class="muted" id="apikey-status"></p>
+            <div class="row gap-2">
+              <input class="text-input" type="password" id="apikey-input" placeholder="API key" autocomplete="off" aria-label="API key" />
+              <button class="btn btn-primary btn-sm" id="apikey-save" type="button">Save</button>
+              <button class="btn btn-ghost btn-sm" id="apikey-clear" type="button">Forget</button>
+            </div>
+            <small class="muted">Stored only in this browser. Sent as <code>X-API-Key</code>.</small>
+          </section>
+
+          <section class="panel" aria-labelledby="s-defaults">
+            <header class="panel-header"><h3 id="s-defaults">Server search defaults</h3><span class="muted">apply to every client</span></header>
+            <form id="defaults-form" class="form-grid">
+              <label class="field">Mode<select name="mode"><option value="identify">identify</option><option value="occurrences">occurrences</option></select></label>
+              <label class="field">Results (top_k)<input type="number" name="top_k" min="1" step="1" /></label>
+              <label class="field">Min confidence<input type="number" name="min_confidence" min="0" max="1" step="0.01" /></label>
+              <label class="field">Min aligned hashes<input type="number" name="min_aligned_hashes" min="1" step="1" /></label>
+              <label class="field">Min peak ratio<input type="number" name="min_peak_ratio" min="0" step="0.5" /></label>
+              <div class="row gap-2"><button class="btn btn-primary btn-sm" type="submit">Save defaults</button></div>
+            </form>
+          </section>
+
+          <section class="panel" aria-labelledby="s-appearance">
+            <header class="panel-header"><h3 id="s-appearance">Appearance</h3></header>
+            <div class="row gap-2">
+              <button class="btn btn-ghost btn-sm" data-theme-set="dark" type="button">Dark</button>
+              <button class="btn btn-ghost btn-sm" data-theme-set="light" type="button">Light</button>
+              <button class="btn btn-ghost btn-sm" data-theme-set="system" type="button">Follow system</button>
+            </div>
+            <label class="checkbox"><input type="checkbox" id="pref-autoplay" /> Start playback at the matched position when I press play on a result</label>
+          </section>
+
+          <section class="panel" aria-labelledby="s-system">
+            <header class="panel-header"><h3 id="s-system">System</h3><button class="btn btn-ghost btn-sm" id="sys-refresh" type="button" title="Refresh" aria-label="Refresh system information">↻</button></header>
+            <dl class="kv" id="sys-info"></dl>
+            <div class="row gap-2 wrap">
+              <a class="btn btn-ghost btn-sm" href="/docs" target="_blank" rel="noopener">API docs</a>
+              <a class="btn btn-ghost btn-sm" href="/api/v1/openapi.json" target="_blank" rel="noopener">OpenAPI JSON</a>
+              <a class="btn btn-ghost btn-sm" href="https://github.com/inboxpraveen/Audio-Fingerprint" target="_blank" rel="noopener">Source &amp; guides</a>
+            </div>
+          </section>
+        </div>
+      </section>
     </main>
   </div>
 
-  <!-- ================================================================ -->
-  <!-- Mobile bottom tabs (< 900px)                                     -->
-  <!-- ================================================================ -->
-  <nav class="mobile-tabs">
-    <button class="mobile-tab active" data-tab="search">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-      </svg>
-      Search
-    </button>
-    <button class="mobile-tab" data-tab="library">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/>
-      </svg>
-      Library
-    </button>
+  <!-- Mobile bottom tabs -->
+  <nav class="mobile-tabs" aria-label="Views">
+    <a class="mobile-tab" href="#search" data-view="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Search</a>
+    <a class="mobile-tab" href="#library" data-view="library"><svg viewBox="0 0 24 24"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>Library</a>
+    <a class="mobile-tab" href="#activity" data-view="activity"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Activity</a>
+    <a class="mobile-tab" href="#settings" data-view="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</a>
   </nav>
 
-  <div class="toast-wrap" id="toasts"></div>
-
-  <!-- ================================================================ -->
-  <!-- JavaScript                                                        -->
-  <!-- ================================================================ -->
-  <script>
-    'use strict';
-
-    /* ------------------------------------------------------------------ */
-    /* Theme                                                               */
-    /* ------------------------------------------------------------------ */
-    const $html = document.documentElement;
-
-    (function initTheme() {
-      const saved = localStorage.getItem('audiofp_theme') || 'dark';
-      $html.setAttribute('data-theme', saved);
-      renderThemeIcons();
-    })();
-
-    function renderThemeIcons() {
-      const dark = $html.getAttribute('data-theme') === 'dark';
-      const sunSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <circle cx="12" cy="12" r="5"/>
-        <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-        <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-      </svg>`;
-      const moonSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-      </svg>`;
-      const icon = dark ? sunSvg : moonSvg;
-      document.getElementById('theme-btn').innerHTML = icon;
-      document.getElementById('theme-btn-mobile').innerHTML = icon;
-    }
-
-    function toggleTheme() {
-      const next = $html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-      $html.setAttribute('data-theme', next);
-      localStorage.setItem('audiofp_theme', next);
-      renderThemeIcons();
-    }
-
-    document.getElementById('theme-btn').addEventListener('click', toggleTheme);
-    document.getElementById('theme-btn-mobile').addEventListener('click', toggleTheme);
-
-    /* ------------------------------------------------------------------ */
-    /* API helper                                                          */
-    /* ------------------------------------------------------------------ */
-    const BASE = '/api/v1';
-
-    async function api(path, opts = {}) {
-      const r = await fetch(BASE + path, opts);
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
-      return data;
-    }
-
-    /* ------------------------------------------------------------------ */
-    /* Toast notifications                                                 */
-    /* ------------------------------------------------------------------ */
-    function toast(msg, type = 'info', dur = 4500) {
-      const icons = { ok: '✓', err: '✕', info: 'ℹ' };
-      const el = Object.assign(document.createElement('div'), {
-        className: `toast ${type}`,
-        innerHTML: `<span style="font-size:14px;flex-shrink:0">${icons[type] || 'ℹ'}</span><span>${msg}</span>`
-      });
-      document.getElementById('toasts').appendChild(el);
-      setTimeout(() => el.remove(), dur);
-    }
-
-    /* ------------------------------------------------------------------ */
-    /* Navigation                                                          */
-    /* ------------------------------------------------------------------ */
-    function showTab(name) {
-      document.querySelectorAll('.nav-item, .mobile-tab').forEach(b =>
-        b.classList.toggle('active', b.dataset.tab === name));
-      document.querySelectorAll('.view').forEach(v =>
-        v.classList.toggle('active', v.id === 'view-' + name));
-      if (name === 'library') loadLibrary();
-      if (name === 'search') loadStats();
-    }
-
-    document.querySelectorAll('.nav-item, .mobile-tab').forEach(b =>
-      b.addEventListener('click', () => showTab(b.dataset.tab)));
-
-    /* ------------------------------------------------------------------ */
-    /* Drag-and-drop helper                                                */
-    /* ------------------------------------------------------------------ */
-    function initDropZone(zoneId, inputId, onFiles) {
-      const zone = document.getElementById(zoneId);
-      const input = document.getElementById(inputId);
-
-      zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('hover'); });
-      zone.addEventListener('dragleave', () => zone.classList.remove('hover'));
-      zone.addEventListener('drop', e => {
-        e.preventDefault();
-        zone.classList.remove('hover');
-        const files = [...e.dataTransfer.files].filter(isAudio);
-        if (files.length) onFiles(files);
-      });
-      input.addEventListener('change', () => {
-        if (input.files.length) { onFiles([...input.files]); input.value = ''; }
-      });
-    }
-
-    const VIDEO_EXTS = /\.(mp4|mkv|avi|mov|wmv|flv|webm|m4v|mpeg|mpg|ts|mts|3gp|vob)$/i;
-    const AUDIO_EXTS = /\.(mp3|wav|flac|m4a|ogg|aac|wma|opus)$/i;
-
-    function isAudio(f) {
-      return f.type.startsWith('audio/') || f.type.startsWith('video/') ||
-        AUDIO_EXTS.test(f.name) || VIDEO_EXTS.test(f.name);
-    }
-
-    function isVideo(f) {
-      return f.type.startsWith('video/') || VIDEO_EXTS.test(f.name);
-    }
-
-    /* ------------------------------------------------------------------ */
-    /* Formatters                                                          */
-    /* ------------------------------------------------------------------ */
-    function fmtSize(b) {
-      if (b < 1024) return b + ' B';
-      if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
-      return (b / 1048576).toFixed(1) + ' MB';
-    }
-
-    function fmtDur(s) {
-      if (!s && s !== 0) return '-';
-      const m = Math.floor(s / 60), ss = Math.floor(s % 60);
-      return `${m}:${String(ss).padStart(2, '0')}`;
-    }
-
-    function fmtNum(n) {
-      if (n == null) return '-';
-      if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
-      if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
-      return String(n);
-    }
-
-    function pct(v) { return Math.round(v * 100); }
-
-    function esc(s) {
-      if (!s) return '';
-      return String(s)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
-    function ext(name) { return (name || '').split('.').pop().toUpperCase(); }
-
-    /* ------------------------------------------------------------------ */
-    /* Song art helpers (deterministic gradient + waveform from title)     */
-    /* ------------------------------------------------------------------ */
-    function titleHash(str) {
-      let h = 5381;
-      for (let i = 0; i < str.length; i++) h = ((h << 5) + h) ^ str.charCodeAt(i);
-      return Math.abs(h >>> 0);
-    }
-
-    function artGradient(title) {
-      const h = titleHash(title || 'unknown');
-      const hue1 = h % 360;
-      const hue2 = (hue1 + 45) % 360;
-      return `linear-gradient(135deg, hsl(${hue1},60%,30%), hsl(${hue2},70%,48%))`;
-    }
-
-    function artBars(title, count = 14) {
-      const seed = titleHash(title || 'x');
-      return Array.from({ length: count }, (_, i) => {
-        const v = ((seed * (i + 7) * 2654435761) >>> 0) % 100;
-        const h = 18 + Math.round(v * 0.46);
-        return `<div class="song-art-bar" style="height:${h}px;opacity:${.5 + (i % 3) * .15}"></div>`;
-      }).join('');
-    }
-
-    function resultArtBars(title, count = 8) {
-      const seed = titleHash(title || 'x');
-      return Array.from({ length: count }, (_, i) => {
-        const v = ((seed * (i + 3) * 2654435761) >>> 0) % 100;
-        const h = 16 + Math.round(v * 0.44);
-        return `<div class="best-art-bar" style="height:${h}px;opacity:${.55 + (i % 3) * .14}"></div>`;
-      }).join('');
-    }
-
-    /* ------------------------------------------------------------------ */
-    /* Inline audio player                                                 */
-    /* ------------------------------------------------------------------ */
-    let currentAudioEl = null;
-    let currentPlayBtn = null;
-
-    const playSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
-    const stopSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>`;
-
-    function togglePlay(songId, btn) {
-      if (currentAudioEl && currentPlayBtn === btn) {
-        currentAudioEl.pause();
-        currentAudioEl.remove();
-        currentAudioEl = null;
-        btn.classList.remove('playing');
-        btn.innerHTML = playSvg;
-        currentPlayBtn = null;
-        return;
-      }
-
-      if (currentAudioEl) {
-        currentAudioEl.pause();
-        currentAudioEl.remove();
-        currentAudioEl = null;
-        if (currentPlayBtn) {
-          currentPlayBtn.classList.remove('playing');
-          currentPlayBtn.innerHTML = playSvg;
-        }
-      }
-
-      const card = btn.closest('.song-card, .result-card, .best-match-card');
-      if (!card) return;
-
-      let playerDiv = card.querySelector('.inline-player');
-      if (!playerDiv) {
-        playerDiv = document.createElement('div');
-        playerDiv.className = 'inline-player';
-        card.appendChild(playerDiv);
-      }
-
-      const audio = document.createElement('audio');
-      audio.controls = true;
-      audio.src = `${BASE}/songs/${songId}/play`;
-      audio.style.width = '100%';
-      audio.style.height = '30px';
-      audio.style.borderRadius = '6px';
-      playerDiv.innerHTML = '';
-      playerDiv.appendChild(audio);
-
-      audio.play().catch(() => toast('Could not play audio', 'err'));
-
-      btn.classList.add('playing');
-      btn.innerHTML = stopSvg;
-      currentAudioEl = audio;
-      currentPlayBtn = btn;
-
-      audio.addEventListener('ended', () => {
-        playerDiv.remove();
-        btn.classList.remove('playing');
-        btn.innerHTML = playSvg;
-        currentAudioEl = null;
-        currentPlayBtn = null;
-      });
-    }
-
-    /* ------------------------------------------------------------------ */
-    /* Top-K selector                                                      */
-    /* ------------------------------------------------------------------ */
-    const topkSelect = document.getElementById('topk-input');
-    const savedTopK = localStorage.getItem('audiofp_topk');
-    if (savedTopK) topkSelect.value = savedTopK;
-
-    topkSelect.addEventListener('change', () => {
-      const val = topkSelect.value;
-      localStorage.setItem('audiofp_topk', val);
-      api('/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ top_k: parseInt(val) }),
-      }).catch(() => {});
-    });
-
-    api('/settings').then(s => {
-      if (s.top_k && !savedTopK) topkSelect.value = String(s.top_k);
-    }).catch(() => {});
-
-    /* ------------------------------------------------------------------ */
-    /* Search                                                              */
-    /* ------------------------------------------------------------------ */
-    let searchFile = null;
-    initDropZone('search-zone', 'search-input', files => setSearchFile(files[0]));
-
-    function setSearchFile(f) {
-      searchFile = f;
-      document.getElementById('search-fname').textContent = f.name;
-      document.getElementById('search-fsize').textContent = fmtSize(f.size);
-      document.getElementById('search-bar').classList.remove('hidden');
-      document.getElementById('search-results').innerHTML = '';
-    }
-
-    document.getElementById('search-clear').addEventListener('click', () => {
-      searchFile = null;
-      document.getElementById('search-bar').classList.add('hidden');
-      document.getElementById('search-results').innerHTML = '';
-    });
-
-    document.getElementById('search-btn').addEventListener('click', doSearch);
-
-    document.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && searchFile &&
-          document.getElementById('view-search').classList.contains('active')) {
-        doSearch();
-      }
-    });
-
-    async function doSearch() {
-      if (!searchFile) return;
-      const btn = document.getElementById('search-btn');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> Searching…';
-      document.getElementById('search-results').innerHTML = '';
-
-      try {
-        const fd = new FormData();
-        fd.append('audio', searchFile);
-        fd.append('top_k', topkSelect.value);
-        const data = await api('/search', { method: 'POST', body: fd });
-        renderResults(data);
-      } catch (e) {
-        toast('Search failed: ' + e.message, 'err');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-        </svg> Search Library`;
-      }
-    }
-
-    /* ------------------------------------------------------------------ */
-    /* Render search results                                               */
-    /* ------------------------------------------------------------------ */
-    function renderResults(data) {
-      const el = document.getElementById('search-results');
-
-      if (!data.found) {
-        el.innerHTML = `
-          <div class="no-results">
-            <div class="no-results-emoji">🎵</div>
-            <h3>No matches found</h3>
-            <p>Try a longer clip, reduce background noise, or add more files to the library.</p>
-          </div>`;
-        return;
-      }
-
-      const [best, ...rest] = data.matches;
-      const bestP     = pct(best.confidence);
-      const bestTitle = best.title || best.filename || 'Unknown';
-      const bestId    = esc(best.song_id || '');
-
-      let html = `
-        <div class="results-header">
-          <h2>${data.matches.length} match${data.matches.length !== 1 ? 'es' : ''} found</h2>
-          <div class="results-meta">
-            <span class="meta-pill">🎵 ${data.query_duration_sec}s clip</span>
-            <span class="meta-pill">⚡ ${data.processing_time_ms.toFixed(0)} ms</span>
-          </div>
-        </div>
-
-        <div class="best-match-card">
-          <div class="best-art" style="background:${artGradient(bestTitle)}">
-            ${resultArtBars(bestTitle)}
-          </div>
-          <div class="best-info">
-            <div class="best-badge">
-              <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-              </svg>
-              Best Match
-            </div>
-            <div class="best-title">${esc(bestTitle)}</div>
-            ${best.artist ? `<div class="best-artist">${esc(best.artist)}</div>` : ''}
-            <div class="best-footer">
-              ${best.match_offset_sec != null ? `
-                <span class="tag">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                  </svg>
-                  at ${best.match_offset_sec}s
-                </span>` : ''}
-              ${best.duration ? `<span class="tag">⏱ ${fmtDur(best.duration)}</span>` : ''}
-              ${best.num_hashes ? `<span class="tag">◈ ${fmtNum(best.num_hashes)} hashes</span>` : ''}
-              ${bestId ? `
-                <button class="play-btn" onclick="togglePlay('${bestId}', this)" title="Play match">
-                  ${playSvg}
-                </button>` : ''}
-            </div>
-          </div>
-          <div class="best-score-wrap">
-            <div class="best-score">${bestP}%</div>
-            <div class="best-score-label">Confidence</div>
-          </div>
-        </div>`;
-
-      if (rest.length > 0) {
-        html += `<div class="results-grid">`;
-        rest.forEach(m => {
-          const p      = pct(m.confidence);
-          const title  = esc(m.title || m.filename || 'Unknown');
-          const songId = esc(m.song_id || '');
-          html += `
-            <div class="result-card">
-              <div class="result-header">
-                <div>
-                  <div class="result-title">${title}</div>
-                  ${m.artist ? `<div class="result-artist">${esc(m.artist)}</div>` : ''}
-                </div>
-                <div class="result-score">
-                  <div class="score-pct">${p}%</div>
-                  <div class="score-label">Match</div>
-                </div>
-              </div>
-              <div class="conf-track">
-                <div class="conf-fill" style="width:${Math.min(p, 100)}%"></div>
-              </div>
-              <div class="tags">
-                ${m.match_offset_sec != null ? `
-                  <span class="tag">
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                    </svg>
-                    ${m.match_offset_sec}s
-                  </span>` : ''}
-                ${m.duration ? `<span class="tag">⏱ ${fmtDur(m.duration)}</span>` : ''}
-                ${m.filename  ? `<span class="tag">${esc(ext(m.filename))}</span>` : ''}
-              </div>
-              ${songId ? `
-                <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
-                  <button class="play-btn" onclick="togglePlay('${songId}', this)" title="Play">
-                    ${playSvg}
-                  </button>
-                  <span style="font-size:10.5px;color:var(--text2)">Play match</span>
-                </div>` : ''}
-            </div>`;
-        });
-        html += `</div>`;
-      }
-
-      el.innerHTML = html;
-    }
-
-    /* ------------------------------------------------------------------ */
-    /* Library                                                             */
-    /* ------------------------------------------------------------------ */
-    initDropZone('lib-zone', 'lib-input', files => files.forEach(uploadFile));
-
-    document.getElementById('dir-btn').addEventListener('click', () => {
-      const path = document.getElementById('dir-input').value.trim();
-      if (!path) { toast('Please enter a folder path', 'info'); return; }
-      indexDirectory(path);
-    });
-
-    document.getElementById('dir-input').addEventListener('keydown', e => {
-      if (e.key === 'Enter') document.getElementById('dir-btn').click();
-    });
-
-    const activeJobs = {};
-
-    async function uploadFile(file) {
-      const jobEl = addJobCard(file.name);
-      try {
-        const fd = new FormData();
-        fd.append('audio', file);
-        const data = await api('/upload', { method: 'POST', body: fd });
-        activeJobs[data.job_id] = { el: jobEl, name: file.name };
-        pollJob(data.job_id);
-      } catch (e) {
-        toast('Upload failed: ' + e.message, 'err');
-        jobEl.remove();
-      }
-    }
-
-    async function indexDirectory(dirPath) {
-      const btn = document.getElementById('dir-btn');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span>';
-      try {
-        const data = await api('/index', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ directory_path: dirPath }),
-        });
-        const label = data.total_files ? `${dirPath} (${data.total_files} files)` : dirPath;
-        const jobEl = addJobCard(label);
-        activeJobs[data.job_id] = { el: jobEl, name: label };
-        pollJob(data.job_id);
-        document.getElementById('dir-input').value = '';
-        toast(`Indexing ${data.total_files} files…`, 'info');
-      } catch (e) {
-        toast('Error: ' + e.message, 'err');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-        </svg> Index`;
-      }
-    }
-
-    function addJobCard(name) {
-      const el = document.createElement('div');
-      el.className = 'job-card';
-      el.innerHTML = `
-        <div class="job-top">
-          <div class="job-name">${esc(name)}</div>
-          <div class="job-status pending">Queued</div>
-        </div>
-        <div class="progress-track">
-          <div class="progress-fill" style="width:4%"></div>
-        </div>
-        <div class="job-sub">Starting…</div>`;
-      document.getElementById('job-list').appendChild(el);
-      return el;
-    }
-
-    function pollJob(jobId) {
-      const iv = setInterval(async () => {
-        try {
-          const job  = await api('/jobs/' + jobId);
-          const info = activeJobs[jobId];
-          if (!info) { clearInterval(iv); return; }
-
-          const statusEl   = info.el.querySelector('.job-status');
-          const progressEl = info.el.querySelector('.progress-fill');
-          const subEl      = info.el.querySelector('.job-sub');
-          const p = job.total > 0 ? Math.round(job.completed / job.total * 100) : 0;
-
-          if (job.status === 'pending' || job.status === 'running') {
-            statusEl.textContent  = job.status === 'pending' ? 'Queued' : 'Indexing…';
-            statusEl.className    = 'job-status running';
-            progressEl.style.width = Math.max(p, 8) + '%';
-            subEl.textContent     = job.current_file
-              ? `Processing: ${job.current_file}  (${job.completed}/${job.total})`
-              : 'Starting…';
-
-          } else if (job.status === 'completed') {
-            clearInterval(iv);
-            statusEl.textContent  = 'Complete';
-            statusEl.className    = 'job-status completed';
-            progressEl.style.width = '100%';
-            progressEl.classList.add('done');
-            const r = job.result || {};
-            subEl.textContent = `Done — ${r.success || 0} indexed${r.failed > 0 ? `, ${r.failed} failed` : ''}`;
-            toast(`"${info.name}" indexed`, 'ok');
-            delete activeJobs[jobId];
-            updateNavStatus();
-            setTimeout(() => info.el.remove(), 4000);
-            loadLibrary();
-
-          } else if (job.status === 'failed') {
-            clearInterval(iv);
-            statusEl.textContent  = 'Failed';
-            statusEl.className    = 'job-status failed';
-            progressEl.classList.add('error');
-            progressEl.style.width = '100%';
-            subEl.textContent = job.error || 'Unknown error';
-            toast(`Failed: "${info.name}"`, 'err');
-            delete activeJobs[jobId];
-            setTimeout(() => info.el.remove(), 6000);
-          }
-        } catch (_) { clearInterval(iv); }
-      }, 1500);
-    }
-
-    async function loadLibrary() {
-      try {
-        const countEl = document.getElementById('lib-count');
-        const grid    = document.getElementById('songs-grid');
-        const songs   = (await api('/songs')).songs || [];
-
-        countEl.textContent = `${songs.length} file${songs.length !== 1 ? 's' : ''} in library`;
-
-        if (!songs.length) {
-          grid.innerHTML = `
-            <div class="empty-state">
-              <div class="empty-state-emoji">🎵</div>
-              <h3>No audio files yet</h3>
-              <p>Upload files above or index a local folder to get started.</p>
-            </div>`;
-          return;
-        }
-
-        grid.innerHTML = songs.map(s => {
-          const title    = s.title || s.filename || 'Unknown';
-          const gradient = artGradient(title);
-          const bars     = artBars(title);
-          return `
-            <div class="song-card">
-              <div class="song-art" style="background:${gradient}">
-                ${bars}
-              </div>
-              <div class="song-body">
-                <div class="song-title">${esc(title)}</div>
-                ${s.artist && s.artist !== 'Unknown' ? `<div class="song-artist">${esc(s.artist)}</div>` : ''}
-                <div class="song-meta">
-                  ${s.source_type === 'video' ? `<span class="badge video-badge">▶ Video</span>` : ''}
-                  ${s.duration   ? `<span class="badge">⏱ ${fmtDur(s.duration)}</span>` : ''}
-                  ${s.num_hashes ? `<span class="badge">◈ ${fmtNum(s.num_hashes)}</span>` : ''}
-                  ${s.filename   ? `<span class="badge">${esc(ext(s.filename))}</span>` : ''}
-                </div>
-              </div>
-              <div class="song-footer">
-                <button class="play-btn" onclick="togglePlay('${esc(s.song_id)}', this)" title="Play audio">
-                  ${playSvg}
-                </button>
-                <button class="del-btn" onclick="deleteSong('${esc(s.song_id)}')" title="Remove from library">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <polyline points="3 6 5 6 21 6"/>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                  </svg>
-                </button>
-              </div>
-            </div>`;
-        }).join('');
-      } catch (e) {
-        toast('Library load failed: ' + e.message, 'err');
-      }
-    }
-
-    async function deleteSong(id) {
-      if (!confirm('Remove this file from the knowledge base?')) return;
-      try {
-        await api('/songs/' + id, { method: 'DELETE' });
-        toast('Removed from library', 'ok');
-        loadLibrary();
-        updateNavStatus();
-      } catch (e) {
-        toast('Delete failed: ' + e.message, 'err');
-      }
-    }
-
-    /* ------------------------------------------------------------------ */
-    /* Stats                                                               */
-    /* ------------------------------------------------------------------ */
-    async function loadStats() {
-      try {
-        const s = await api('/stats');
-        document.getElementById('st-songs').textContent  = fmtNum(s.total_songs);
-        document.getElementById('st-hashes').textContent = fmtNum(s.total_hashes);
-        document.getElementById('st-unique').textContent = fmtNum(s.unique_hashes);
-        document.getElementById('st-type').textContent   =
-          s.storage_type === 'sqlite' ? 'SQLite'
-            : s.storage_type.charAt(0).toUpperCase() + s.storage_type.slice(1);
-      } catch (_) {}
-    }
-
-    /* ------------------------------------------------------------------ */
-    /* Nav status                                                          */
-    /* ------------------------------------------------------------------ */
-    async function updateNavStatus() {
-      try {
-        const s    = await api('/stats');
-        const text = `${s.total_songs} song${s.total_songs !== 1 ? 's' : ''}`;
-
-        ['status-dot', 'mob-status-dot'].forEach(id =>
-          document.getElementById(id).className = 'status-dot');
-        ['status-text', 'mob-status-text'].forEach(id =>
-          document.getElementById(id).textContent = text);
-
-        document.getElementById('st-songs').textContent  = fmtNum(s.total_songs);
-        document.getElementById('st-hashes').textContent = fmtNum(s.total_hashes);
-        document.getElementById('st-unique').textContent = fmtNum(s.unique_hashes);
-        document.getElementById('st-type').textContent   =
-          s.storage_type === 'sqlite' ? 'SQLite'
-            : s.storage_type.charAt(0).toUpperCase() + s.storage_type.slice(1);
-      } catch (_) {
-        ['status-dot', 'mob-status-dot'].forEach(id =>
-          document.getElementById(id).className = 'status-dot error');
-        ['status-text', 'mob-status-text'].forEach(id =>
-          document.getElementById(id).textContent = 'Offline');
-      }
-    }
-
-    /* ------------------------------------------------------------------ */
-    /* Init                                                                */
-    /* ------------------------------------------------------------------ */
-    updateNavStatus();
-    loadStats();
-    setInterval(updateNavStatus, 30_000);
-  </script>
+  <!-- Track drawer -->
+  <div class="drawer-backdrop hidden" id="drawer-backdrop"></div>
+  <aside class="drawer hidden" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" tabindex="-1">
+    <header class="drawer-header">
+      <h2 id="drawer-title">Track</h2>
+      <button class="icon-btn" id="drawer-close" aria-label="Close">×</button>
+    </header>
+    <div class="drawer-body" id="drawer-body"></div>
+  </aside>
+
+  <!-- Modal -->
+  <div class="modal-backdrop hidden" id="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1">
+      <h2 id="modal-title"></h2>
+      <div id="modal-body"></div>
+      <div class="modal-actions" id="modal-actions"></div>
+    </div>
+  </div>
+
+  <div class="toast-wrap" id="toasts" role="status" aria-live="polite" aria-atomic="false"></div>
+
+  <script src="/static/js/app.js" defer></script>
 </body>
-
 </html>

@@ -66,3 +66,11 @@ htmlcov/
 # *.flac
 # *.m4a
 # *.ogg
+
+# Project
+.venv/
+.ruff_cache/
+.pytest_cache/
+data/
+*.db-wal
+*.db-shm

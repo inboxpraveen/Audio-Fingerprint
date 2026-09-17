@@ -1,0 +1,49 @@
+# docker compose -f docker/docker-compose.yml up --build
+#
+# Default: single AudioFP container with SQLite on a named volume.
+# Optional: `--profile postgres` adds a PostgreSQL service and switches storage to it.
+
+services:
+  audiofp:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: audiofp:latest
+    ports:
+      # Loopback by default; set AUDIOFP_BIND=0.0.0.0 to expose on the network (and always set a key).
+      - "${AUDIOFP_BIND:-127.0.0.1}:5000:5000"
+    environment:
+      AUDIOFP_PROFILE: production
+      AUDIOFP_API_KEY: ${AUDIOFP_API_KEY:?Set AUDIOFP_API_KEY (export it or put it in a .env file next to this compose file)}
+      AUDIOFP_STORAGE_TYPE: ${AUDIOFP_STORAGE_TYPE:-sqlite}
+      AUDIOFP_POSTGRES_DSN: ${AUDIOFP_POSTGRES_DSN:-postgresql://audiofp:audiofp@postgres:5432/audiofp}
+      # Mount your recordings read-only and list the mount here to allow folder indexing.
+      AUDIOFP_INDEX_ROOTS: /recordings
+      AUDIOFP_LOG_FORMAT: json
+    volumes:
+      - audiofp-data:/data
+      - ${AUDIOFP_RECORDINGS:-./recordings}:/recordings:ro
+    # SIGTERM is a clean shutdown (jobs stop at the next file, buffered fingerprints are flushed);
+    # give it longer than Docker's 10 s default before the container is killed.
+    stop_grace_period: 60s
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_USER: audiofp
+      POSTGRES_PASSWORD: audiofp
+      POSTGRES_DB: audiofp
+    volumes:
+      - audiofp-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U audiofp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  audiofp-data:
+  audiofp-pg:

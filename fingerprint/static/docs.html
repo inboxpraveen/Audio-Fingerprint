@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AudioFP API docs</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.33.0/swagger-ui.css" integrity="sha384-Ov4/wv3j2bmct8cDc5X4ngJZohVPzEmc6uDPH8WeljUxO5vtoykvMEfbu9Vh6RaW" crossorigin="anonymous" />
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #fafafa; }
+    .bar { display: flex; align-items: center; gap: 14px; padding: 10px 18px; background: #14141e; color: #ededf5; font-size: 14px; }
+    .bar a { color: #b39cff; }
+    .bar input { margin-left: auto; padding: 6px 10px; border-radius: 6px; border: 1px solid #444; background: #1c1c28; color: #fff; min-width: 220px; }
+    #fallback { display: none; padding: 24px; max-width: 900px; margin: 0 auto; font-size: 14px; line-height: 1.5; }
+    #fallback pre { background: #eee; padding: 12px; overflow: auto; border-radius: 6px; }
+    #fallback table { border-collapse: collapse; width: 100%; }
+    #fallback td, #fallback th { border-bottom: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: top; }
+    code { font-family: ui-monospace, Menlo, Consolas, monospace; }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <b>AudioFP API</b>
+    <a href="/">← back to the app</a>
+    <a href="/api/v1/openapi.json">openapi.json</a>
+    <input id="key" type="password" placeholder="API key (if the server requires one)" aria-label="API key" />
+  </div>
+  <div id="swagger-ui"></div>
+  <div id="fallback">
+    <h1>AudioFP API reference</h1>
+    <p>The interactive explorer needs internet access to load Swagger UI. Below is the same specification rendered without it.</p>
+    <div id="fallback-content">Loading…</div>
+  </div>
+  <script>
+    const keyInput = document.getElementById("key");
+    try { keyInput.value = JSON.parse(localStorage.getItem("audiofp:apiKey") || '""'); } catch (e) {}
+    keyInput.addEventListener("change", () => { try { localStorage.setItem("audiofp:apiKey", JSON.stringify(keyInput.value.trim())); } catch (e) {} });
+
+    function renderFallback(spec) {
+      const el = document.getElementById("fallback-content");
+      const rows = [];
+      for (const [path, methods] of Object.entries(spec.paths)) {
+        for (const [method, op] of Object.entries(methods)) {
+          rows.push(`<tr><td><code>${method.toUpperCase()} /api/v1${path}</code>${op.deprecated ? " <em>(deprecated)</em>" : ""}</td><td><b>${op.summary || ""}</b>${op.description ? `<br>${op.description}` : ""}</td></tr>`);
+        }
+      }
+      el.innerHTML = `<table><thead><tr><th>Endpoint</th><th>Description</th></tr></thead><tbody>${rows.join("")}</tbody></table>
+        <h2>Authentication</h2><p>If the server sets <code>AUDIOFP_API_KEY</code>, send it as <code>X-API-Key: &lt;key&gt;</code> (or <code>Authorization: Bearer &lt;key&gt;</code>). Health and this document are public.</p>
+        <h2>Example</h2><pre>curl -F "audio=@clip.wav" -F mode=occurrences http://localhost:5000/api/v1/search</pre>`;
+      document.getElementById("fallback").style.display = "block";
+    }
+
+    function boot() {
+      if (!window.SwaggerUIBundle) {
+        fetch("/api/v1/openapi.json").then((r) => r.json()).then(renderFallback).catch(() => {
+          document.getElementById("fallback-content").textContent = "Could not load /api/v1/openapi.json.";
+          document.getElementById("fallback").style.display = "block";
+        });
+        return;
+      }
+      window.SwaggerUIBundle({
+        url: "/api/v1/openapi.json",
+        dom_id: "#swagger-ui",
+        deepLinking: true,
+        requestInterceptor: (req) => { const k = keyInput.value.trim(); if (k) req.headers["X-API-Key"] = k; return req; },
+      });
+    }
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.33.0/swagger-ui-bundle.js";
+    script.integrity = "sha384-YDALVcy8kj8yltLBVi1vBiBAUqdxvus673gM8XKwiy6aDUJFXivF/KCufekjYbVf";
+    script.crossOrigin = "anonymous";
+    script.onload = boot;
+    script.onerror = boot;
+    document.head.appendChild(script);
+  </script>
+</body>
+</html>

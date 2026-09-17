@@ -1,19 +1,45 @@
-"""Utility modules."""
+"""Cross-cutting utilities: exceptions, logging, filesystem helpers."""
 
-from .logger import setup_logger
 from .exceptions import (
-    FingerprintException,
+    AudioDecodeError,
+    AudioFPError,
     AudioProcessingError,
-    StorageError,
+    AuthenticationError,
+    ConfigurationError,
+    ConflictError,
+    FFmpegNotFoundError,
+    FingerprintCompatibilityError,
+    ForbiddenError,
+    JobError,
     MatchingError,
+    NotFoundError,
+    PayloadTooLargeError,
+    StorageError,
+    UnsupportedFormatError,
     ValidationError,
 )
+from .logging import configure_logging, get_logger, job_id_var, log_extra, request_id_var
 
 __all__ = [
-    "setup_logger",
-    "FingerprintException",
+    "AudioDecodeError",
+    "AudioFPError",
     "AudioProcessingError",
-    "StorageError",
+    "AuthenticationError",
+    "ConfigurationError",
+    "ConflictError",
+    "FFmpegNotFoundError",
+    "FingerprintCompatibilityError",
+    "ForbiddenError",
+    "JobError",
     "MatchingError",
+    "NotFoundError",
+    "PayloadTooLargeError",
+    "StorageError",
+    "UnsupportedFormatError",
     "ValidationError",
+    "configure_logging",
+    "get_logger",
+    "job_id_var",
+    "log_extra",
+    "request_id_var",
 ]
