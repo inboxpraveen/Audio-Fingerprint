@@ -123,7 +123,7 @@ def create_app(
         if token is not None:
             try:
                 request_id_var.reset(token)
-            except ValueError:  # pragma: no cover - different context
+            except ValueError:  # pragma: no cover, the token was set in another context
                 pass
 
     # ------------------------------------------------------------------ blueprints & pages

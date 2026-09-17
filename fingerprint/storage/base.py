@@ -1,12 +1,12 @@
 """Storage backend contract.
 
-A backend stores *tracks* (a song, a call recording, a jingle - any indexed
-piece of audio) and the inverted index ``hash -> (track, frame)`` used for
-matching.  Internally each track has a small integer ``ref`` that keeps the
-fingerprint table compact; externally tracks are addressed by their opaque
-``track_id`` (a UUID string).
+A backend stores tracks (any indexed piece of audio: a song, a call recording,
+a jingle) and the inverted index from hash to (track, frame) that matching
+uses. Inside the store each track has a small integer ``ref`` that keeps the
+fingerprint table compact. Outside it, tracks are addressed by their opaque
+``track_id``, a UUID string.
 
-All backends must pass the shared contract tests in ``tests/test_storage.py``.
+Every backend has to pass the shared contract tests in ``tests/test_storage.py``.
 """
 
 from __future__ import annotations
@@ -145,8 +145,8 @@ class StorageBackend(ABC):
             details={"stored_signature": stored, "current_signature": signature, "stored_params": self.get_meta(META_PARAMS)},
         )
 
-    def close(self) -> None:  # noqa: B027 - optional hook, backends without connections need not override
-        """Release connections. Safe to call multiple times."""
+    def close(self) -> None:  # noqa: B027 (optional hook, backends without connections need not override)
+        """Release connections. Safe to call more than once."""
 
     def flush(self) -> int:
         """Write any buffered fingerprints; returns the number of rows written."""
@@ -220,10 +220,10 @@ class StorageBackend(ABC):
         """Look up many hashes at once.
 
         Returns three aligned arrays ``(hash_value int64, track_ref int64, time_offset int64)``,
-        one entry per stored fingerprint whose hash is in *hash_values*.  Hashes that occur
-        more than *max_rows_per_hash* times in the library are skipped entirely (they are
-        "stop words" that would only inflate the vote count); when *stats* is given,
-        ``stats["skipped_hashes"]`` reports how many were skipped.
+        one entry per stored fingerprint whose hash is in *hash_values*. Hashes that occur
+        more than *max_rows_per_hash* times in the library are skipped entirely. They are
+        "stop words" that would only inflate the vote count. When *stats* is given,
+        ``stats["skipped_hashes"]`` says how many were skipped.
         """
 
     # ------------------------------------------------------------------ stats

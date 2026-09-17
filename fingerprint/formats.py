@@ -1,17 +1,16 @@
-"""Single source of truth for the media formats AudioFP accepts.
+"""The list of media formats AudioFP accepts.
 
-Every other module (validators, scanner, decoder, UI hints) imports from here so
-the supported-format list can never drift between the API, the indexer and the
-documentation.
+Everything else (validators, scanner, decoder, UI hints) imports from here, so
+the list can't drift between the API, the indexer and the documentation.
 """
 
 from __future__ import annotations
 
 import os
 
-# Formats libsndfile (via the ``soundfile`` package) can decode natively - no
-# ffmpeg required.  MP3 support needs libsndfile >= 1.1.0, which the soundfile
-# wheels have bundled since soundfile 0.12.
+# Formats libsndfile (via the ``soundfile`` package) decodes on its own, with no
+# ffmpeg. MP3 support needs libsndfile >= 1.1.0, which the soundfile wheels
+# have bundled since soundfile 0.12.
 NATIVE_AUDIO_EXTENSIONS: frozenset[str] = frozenset(
     {".wav", ".wave", ".flac", ".ogg", ".oga", ".opus", ".mp3", ".aiff", ".aif", ".aifc", ".au", ".caf", ".w64"}
 )

@@ -1,10 +1,10 @@
-"""Index one file or many: decode -> fingerprint -> store, with de-duplication.
+"""Index one file or a whole batch: decode, fingerprint, store, skip duplicates.
 
-The :class:`Indexer` is used by the REST API (through background jobs), by the
-CLI (``audiofp index``) and by tests.  It never raises for a bad *file*: every
-file produces an :class:`IndexOutcome` describing what happened, so a single
-corrupted MP3 cannot abort a 10 000-file run.  Configuration and storage
-failures do raise, because retrying would not help.
+:class:`Indexer` is used by the REST API (through background jobs), by the
+CLI (``audiofp index``) and by the tests. Indexing a bad file never raises. Every
+file gets an :class:`IndexOutcome` saying what happened to it, so one corrupt MP3
+can't abort a 10 000-file run. Configuration and storage failures do raise,
+because retrying wouldn't help there.
 """
 
 from __future__ import annotations
@@ -106,8 +106,8 @@ class Indexer:
         self.fingerprinter = fingerprinter or Fingerprinter(settings)
         self._executor = executor
         self._owns_executor = executor is None
-        # Serialises the "is it already there? -> store" step so two identical files indexed
-        # concurrently (same batch, several workers) cannot both slip past the duplicate check.
+        # lock around the duplicate check plus the store, so two identical files in the
+        # same batch (different workers) can't both get past the check
         self._store_lock = threading.Lock()
 
     # ------------------------------------------------------------------ executor
@@ -241,8 +241,8 @@ class Indexer:
     ) -> IndexSummary:
         """Index many files concurrently on the shared executor.
 
-        Files are submitted in a sliding window (2 x workers) so cancellation is
-        prompt and memory stays bounded even for 100 000-file runs.
+        Files go in through a sliding window of 2 x workers, so a cancel takes
+        effect quickly and memory stays bounded even on a 100 000-file run.
         """
         started = time.time()
         summary = IndexSummary(total=len(paths))
@@ -276,7 +276,7 @@ class Indexer:
                 try:
                     outcome = fut.result()
                 except StorageError as exc:
-                    # Storage is down: stop the whole run rather than fail every file individually.
+                    # storage is gone, no point failing every remaining file one at a time
                     logger.error("Storage failure during indexing: %s", exc)
                     storage_failure = storage_failure or exc
                     summary.errors.append({"file": path, "error": exc.message, "error_code": exc.code})
@@ -300,12 +300,12 @@ class Indexer:
         if should_cancel and should_cancel():
             summary.cancelled = True
         try:
-            self.storage.flush()  # batched backends: make everything from this run durable
+            self.storage.flush()  # batched backends: write out whatever this run left in the buffer
         except StorageError as exc:
             storage_failure = storage_failure or exc
         summary.elapsed_sec = time.time() - started
         if storage_failure is not None:
-            # Surface the root cause to the caller (job -> failed, CLI -> error) instead of a quiet "completed".
+            # raise so the caller sees the real cause: the job ends up failed and the CLI exits with an error
             raise StorageError(
                 f"Indexing stopped after {summary.indexed} file(s): {storage_failure.message}",
                 code=storage_failure.code,

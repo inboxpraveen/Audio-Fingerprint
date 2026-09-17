@@ -48,7 +48,7 @@ def test_config_and_doctor(cli_env, capsys):
 
 
 def test_index_search_stats_tracks_db(cli_env, audio_dir, capsys):
-    assert main(["index", str(audio_dir), *cli_env]) == EXIT_ERROR  # broken.wav fails -> non-zero exit, others indexed
+    assert main(["index", str(audio_dir), *cli_env]) == EXIT_ERROR  # broken.wav fails, so the exit is non-zero, but the rest still get indexed
     out = capsys.readouterr().out
     assert "6 indexed" in out and "1 failed" in out
 

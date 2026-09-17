@@ -1,10 +1,10 @@
 """Uniform JSON error responses.
 
-Every error - ours, Flask's, or an unexpected exception - is rendered as::
+Every error, whether ours, Flask's or an unexpected exception, comes back as::
 
     {"error": "<human message>", "code": "<machine code>", "details": {...}, "request_id": "..."}
 
-``error`` stays a plain string for backwards compatibility with 1.x clients.
+``error`` stays a plain string so 1.x clients keep working.
 """
 
 from __future__ import annotations
@@ -70,7 +70,7 @@ def register_error_handlers(app: Flask) -> None:
         return error_response(message, status, _HTTP_CODES.get(status))
 
     @app.errorhandler(Exception)
-    def _handle_unexpected(exc: Exception):  # pragma: no cover - exercised via tests with a broken storage
+    def _handle_unexpected(exc: Exception):  # pragma: no cover, the broken-storage tests go through here
         logger.exception("Unhandled error while processing request")
         if app.config.get("PROPAGATE_EXCEPTIONS"):
             raise exc

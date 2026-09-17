@@ -1,24 +1,24 @@
-"""Combinatorial hash generation (Wang 2003 / "Shazam" landmarks), vectorised.
+"""Combinatorial hash generation (Wang 2003, the "Shazam" landmarks), vectorised.
 
-Each spectral peak (the *anchor*) is paired with the next ``fan_value`` peaks
-that lie at least ``min_time_delta`` frames later.  A pair is encoded as a
-single 36-bit integer::
+Each spectral peak, the anchor, is paired with the next ``fan_value`` peaks
+that lie at least ``min_time_delta`` frames later. A pair is encoded as one
+36-bit integer::
 
     hash = (f_anchor << 24) | (f_target << 12) | delta_t
              12 bits           12 bits          12 bits
 
-so frequency bins up to 4095 and time deltas up to 4095 frames are supported
-(n_fft <= 8190, delta_t <= ~190 s at the default hop / sample rate).  The
-anchor's absolute frame index is stored alongside the hash for offset voting.
+so frequency bins up to 4095 and time deltas up to 4095 frames fit
+(n_fft <= 8190, delta_t <= ~190 s at the default hop and sample rate). The
+anchor's absolute frame index is stored next to the hash for offset voting.
 
-Pairs between *simultaneous* peaks (``delta_t == 0``, the harmonics of one
-chord) describe timbre rather than sequence.  They are kept by default because
-strong harmonics survive noise well; the matcher separately requires an
-alignment to span several distinct frames, so one shared chord can never pass
-as a match.  Set ``min_time_delta=1`` to drop them for very repetitive material.
+Pairs of simultaneous peaks (``delta_t == 0``, the harmonics of one chord)
+describe timbre rather than sequence. We keep them by default because strong
+harmonics survive noise well. The matcher separately requires an alignment to
+span several distinct frames, so one shared chord can never pass as a match.
+Set ``min_time_delta=1`` to drop them for very repetitive material.
 
-Hash *values* are deterministic functions of the audio content only; they carry
-no track information, which is what makes the inverted index possible.
+A hash value is a deterministic function of the audio content alone and
+carries no track information. That is what makes the inverted index possible.
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ def encode_hash(f1: np.ndarray, f2: np.ndarray, dt: np.ndarray) -> np.ndarray:
 
 
 def decode_hash(hash_value: int) -> tuple[int, int, int]:
-    """Inverse of :func:`encode_hash` for a single value (debugging / explain)."""
+    """Inverse of :func:`encode_hash` for a single value (for debugging)."""
     h = int(hash_value)
     return (h >> (FREQ_BITS + DELTA_BITS)) & FREQ_MASK, (h >> DELTA_BITS) & FREQ_MASK, h & DELTA_MASK
 
@@ -65,8 +65,8 @@ def generate_hashes(
         max_time_delta: Pairs further apart than this are dropped.
 
     Returns:
-        ``(hashes, anchor_times)`` - int64 hashes and the int32 frame index of each
-        hash's anchor peak.  Both arrays are sorted by anchor time.
+        ``(hashes, anchor_times)``: int64 hashes and the int32 frame index of each
+        hash's anchor peak. Both arrays are sorted by anchor time.
     """
     t = np.asarray(peak_times, dtype=np.int64)
     f = np.asarray(peak_freqs, dtype=np.int64)

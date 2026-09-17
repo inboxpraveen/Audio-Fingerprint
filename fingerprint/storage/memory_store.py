@@ -1,8 +1,8 @@
 """In-memory storage backend.
 
-Great for tests, demos and throw-away experiments.  Nothing survives a restart.
-The inverted index is a list of sorted *segments* (one per added track, merged
-into a single segment once there are more than ``MAX_SEGMENTS``), so adding a
+Meant for tests, demos and throw-away experiments. Nothing survives a restart.
+The inverted index is a list of sorted segments, one per added track, merged
+into a single segment once there are more than ``MAX_SEGMENTS``. Adding a
 track never re-sorts the whole library and lookups stay vectorised
 (``searchsorted`` per segment).
 """
@@ -27,7 +27,7 @@ class MemoryStore(StorageBackend):
     def __init__(self) -> None:
         self._lock = threading.RLock()
         self._meta: dict[str, str] = {}
-        self._tracks: dict[str, TrackRecord] = {}  # track_id -> record
+        self._tracks: dict[str, TrackRecord] = {}  # keyed by track_id
         self._by_ref: dict[int, TrackRecord] = {}
         self._next_ref = 1
         # Sorted index segments: (hashes sorted, refs, times). Deleted refs are masked out lazily.

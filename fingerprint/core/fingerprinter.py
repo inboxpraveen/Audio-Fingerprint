@@ -1,14 +1,15 @@
-"""Spectral peak extraction ("constellation map") with flat memory usage.
+"""Spectral peak extraction (the "constellation map") with flat memory usage.
 
-The STFT is computed with numpy (periodic Hann window, ``center=True`` style
-zero padding, so results are identical to ``librosa.stft`` defaults) on a
-stream of audio chunks.  Peaks are local maxima of the magnitude spectrogram
-inside a ``peak_neighborhood_size`` square window that exceed ``min_amplitude``.
+The STFT is computed with numpy over a stream of audio chunks. It uses a
+periodic Hann window and ``center=True`` style zero padding, so the result is
+identical to ``librosa.stft`` with default arguments. Peaks are local maxima of
+the magnitude spectrogram inside a ``peak_neighborhood_size`` square window
+that exceed ``min_amplitude``.
 
 :class:`PeakExtractor` keeps just enough spectrogram columns from the previous
-chunk to give every frame full left/right context, so chunked processing
-yields **exactly** the same peaks as processing the whole signal at once (this
-is asserted by the test-suite).
+chunk to give every frame full context on both sides. Chunked processing
+therefore yields exactly the same peaks as processing the whole signal at
+once, and a test asserts that.
 """
 
 from __future__ import annotations
@@ -66,7 +67,7 @@ class Fingerprint:
 
 
 class PeakExtractor:
-    """Incremental STFT + local-maximum peak picking over a chunk stream."""
+    """Incremental STFT and local-maximum peak picking over a chunk stream."""
 
     def __init__(self, n_fft: int, hop_length: int, neighborhood: int, min_amplitude: float, normalize: bool = False):
         if n_fft <= 0 or n_fft % 2:
@@ -81,10 +82,10 @@ class PeakExtractor:
         # scipy's max filter looks size//2 back and (size-1)//2 ahead; keep a full window as margin.
         self.margin = max(self.neighborhood, 1)
         self.window = get_window("hann", self.n_fft, fftbins=True).astype(np.float32)
-        # Peak normalisation in a single pass: local maxima are gain-invariant, only the amplitude
-        # threshold depends on the (unknown until the end) peak sample.  Candidates are kept with
-        # their magnitude against the *running* peak - a superset of the final set - and the exact
-        # threshold min_amplitude * final_peak is applied in finish().
+        # Peak normalisation in a single pass. Local maxima don't depend on gain, only the amplitude
+        # threshold does, and the peak sample isn't known until the end. So candidates are collected
+        # against the running peak (a superset of the final set) and finish() applies the exact
+        # threshold min_amplitude * final_peak.
         self.normalize = bool(normalize)
         self._peak_sample = 0.0
         self._peaks_mag: list[np.ndarray] = []
@@ -202,7 +203,7 @@ class PeakExtractor:
 
 
 class Fingerprinter:
-    """High-level facade: audio (file, array or chunk stream) -> :class:`Fingerprint`."""
+    """Turns a file, an in-memory array or a chunk stream into a :class:`Fingerprint`."""
 
     def __init__(self, settings: Settings | None = None, **overrides):
         self.settings = settings or Settings.load(dotenv=False, **overrides)
@@ -273,7 +274,7 @@ class Fingerprinter:
     ) -> Fingerprint:
         """Decode and fingerprint *path* in one streaming pass with flat memory usage.
 
-        ``normalize=True`` (default) yields exactly the fingerprint of the
+        With ``normalize=True`` (the default) you get the fingerprint of the
         peak-normalised recording without decoding it twice.
         """
         s = self.settings
@@ -285,8 +286,8 @@ class Fingerprinter:
                 normalize=normalize,
                 extra={"path": path, "name": name},
             )
-        except MemoryError as exc:  # pragma: no cover - environment specific
+        except MemoryError as exc:  # pragma: no cover (environment specific)
             raise AudioProcessingError(f"Out of memory while fingerprinting '{name}'") from exc
         if fp.num_samples == 0:
-            raise AudioProcessingError(f"'{name}' decoded to zero samples - is the file empty or truncated?", code="empty_audio")
+            raise AudioProcessingError(f"'{name}' decoded to zero samples. The file may be empty or truncated.", code="empty_audio")
         return fp

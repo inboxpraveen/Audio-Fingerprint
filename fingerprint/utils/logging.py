@@ -1,9 +1,9 @@
-"""Logging setup: console + rotating file, text or JSON, request-id aware.
+"""Logging setup: console plus rotating file, text or JSON, with request ids.
 
-Modules obtain loggers with ``logging.getLogger(__name__)`` so everything lives
-under the ``fingerprint`` namespace and is configured once by
-:func:`configure_logging`.  The current request id (set by the API layer) is
-injected into every record through a :class:`contextvars.ContextVar`.
+Modules get their loggers with ``logging.getLogger(__name__)``, so everything sits
+under the ``fingerprint`` namespace and :func:`configure_logging` sets it up once.
+The current request id, set by the API layer, is added to every record through a
+:class:`contextvars.ContextVar`.
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ class ContextFilter(logging.Filter):
 
 
 class JsonFormatter(logging.Formatter):
-    """One JSON object per line - friendly to Loki, Datadog, CloudWatch, etc."""
+    """One JSON object per line, easy to ship to Loki, Datadog or CloudWatch."""
 
     def format(self, record: logging.LogRecord) -> str:
         payload: dict[str, Any] = {
@@ -86,7 +86,7 @@ def configure_logging(
         root.removeHandler(handler)
         try:
             handler.close()
-        except Exception:  # pragma: no cover - defensive
+        except Exception:  # pragma: no cover, nothing useful to do if a handler won't close
             pass
 
     formatter: logging.Formatter = JsonFormatter() if fmt == "json" else TextFormatter()
@@ -123,5 +123,5 @@ def get_logger(name: str) -> logging.Logger:
 
 
 def log_extra(**fields: Any) -> dict[str, Any]:
-    """Helper to attach structured fields: ``logger.info("msg", extra=log_extra(a=1))``."""
+    """Attach structured fields to a log call: ``logger.info("msg", extra=log_extra(a=1))``."""
     return {"extra_fields": fields}

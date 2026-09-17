@@ -1,6 +1,6 @@
 /* ==========================================================================
-   AudioFP UI — vanilla CSS, no build step.
-   Tokens → base → layout → components → views → responsive.
+   AudioFP UI. Plain CSS, no build step.
+   Order of the file: tokens, base, layout, components, views, responsive.
    ========================================================================== */
 
 /* ---------- Tokens ---------------------------------------------------- */
@@ -57,7 +57,7 @@
   --text: #12122a;
   --text2: #4f4f74;
   --muted: #6b6b90;
-  /* Status hues re-tuned for light surfaces (>= 4.5:1 as 11-12px text on their tints). */
+  /* darker status colours for light surfaces, so 11-12px text on the tinted badges still clears 4.5:1 */
   --green: #065f46;
   --green-dim: rgba(6, 95, 70, .14);
   --red: #b91c1c;

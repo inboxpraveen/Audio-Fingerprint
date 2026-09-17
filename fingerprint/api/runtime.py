@@ -1,8 +1,8 @@
-"""The application runtime: one object wiring settings, storage, engine and jobs.
+"""The application runtime: one object that wires settings, storage, engine and jobs together.
 
 The Flask app keeps a single :class:`Runtime` in ``app.extensions["audiofp"]``.
-Route handlers stay thin - they parse the request, call a runtime method and
-format the result.  The CLI reuses the same object without Flask.
+Route handlers stay thin: they parse the request, call a runtime method and
+format the result. The CLI uses the same object without Flask.
 """
 
 from __future__ import annotations
@@ -73,15 +73,15 @@ class Runtime:
     def close(self) -> None:
         """Stop background jobs at the next file boundary, flush buffered fingerprints and release storage.
 
-        Idempotent: called from ``audiofp serve`` on shutdown (SIGINT/SIGTERM) and again from ``atexit``.
+        Safe to call more than once: ``audiofp serve`` calls it on shutdown (SIGINT/SIGTERM) and ``atexit`` calls it again.
         """
         if self._closed:
             return
         self._closed = True
         logger.info("Shutting down: stopping jobs and flushing storage")
         try:
-            # Running jobs see their cancel flag, finish the files already in flight (bounded) and persist
-            # a 'cancelled' record; waiting here keeps that ahead of closing the storage underneath them.
+            # running jobs see their cancel flag, finish the files already in flight (a bounded amount of
+            # work) and write a 'cancelled' record. Wait for that before closing the storage under them.
             self.jobs.shutdown(wait=True)
         finally:
             self.indexer.close()

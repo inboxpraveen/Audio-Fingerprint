@@ -39,7 +39,7 @@ def create_storage(settings: Settings, *, check_compat: bool = True) -> StorageB
         from .postgres_store import PostgresStore
 
         store = PostgresStore(settings.postgres_dsn, pool_size=settings.postgres_pool_size)
-    else:  # pragma: no cover - validated in Settings
+    else:  # pragma: no cover (validated in Settings)
         raise ConfigurationError(f"Unknown storage type {kind!r}")
 
     if check_compat:

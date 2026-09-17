@@ -1,13 +1,13 @@
-"""PostgreSQL storage backend for multi-process / multi-node deployments.
+"""PostgreSQL storage backend for multi-process or multi-node deployments.
 
-Requires the optional dependency ``pip install "audiofp[postgres]"``
-(``psycopg[binary,pool]`` - psycopg 3).
+Needs the optional dependency ``pip install "audiofp[postgres]"``, which pulls
+in ``psycopg[binary,pool]`` (psycopg 3).
 
 * Connections come from a :class:`psycopg_pool.ConnectionPool`.
 * Fingerprints are bulk-loaded with ``COPY`` and looked up with
-  ``WHERE hash_value = ANY(%s)`` - one round trip per query.
+  ``WHERE hash_value = ANY(%s)``, so a query is one round trip.
 * The covering index ``(hash_value) INCLUDE (track_ref, time_offset)`` serves
-  lookups straight from the index; ``ON DELETE CASCADE`` keeps deletes cheap.
+  lookups straight from the index, and ``ON DELETE CASCADE`` keeps deletes cheap.
 """
 
 from __future__ import annotations
@@ -93,19 +93,19 @@ class PostgresStore(StorageBackend):
         try:
             import psycopg  # noqa: F401
             from psycopg_pool import ConnectionPool
-        except ImportError as exc:  # pragma: no cover - depends on optional extra
+        except ImportError as exc:  # pragma: no cover (depends on the optional extra)
             raise StorageError(
                 "PostgreSQL support needs the optional dependency: pip install 'psycopg[binary,pool]' (or pip install 'audiofp[postgres]')"
             ) from exc
         self.dsn = dsn
         try:
             self._pool = ConnectionPool(dsn, min_size=1, max_size=max(1, int(pool_size)), open=True, timeout=connect_timeout)
-            # Fail fast with a readable error instead of a pool timeout deep inside the first query.
+            # fail now with a readable error, otherwise the first query dies with a pool timeout
             self._pool.wait(timeout=connect_timeout)
         except Exception as exc:
             try:
                 self._pool.close(timeout=1)
-            except Exception:  # pragma: no cover - best effort
+            except Exception:  # pragma: no cover (best effort)
                 pass
             raise StorageError(
                 f"Could not connect to PostgreSQL ({_redact(dsn)}): {exc}. Check AUDIOFP_POSTGRES_DSN, that the server is reachable, and that the database exists."
@@ -139,7 +139,7 @@ class PostgresStore(StorageBackend):
     def close(self) -> None:
         try:
             self._pool.close(timeout=5)
-        except Exception:  # pragma: no cover - defensive
+        except Exception:  # pragma: no cover (defensive)
             pass
 
     def health_check(self) -> bool:
@@ -197,7 +197,7 @@ class PostgresStore(StorageBackend):
                 ref = int(cur.fetchone()[0])
                 if hashes.size:
                     with cur.copy("COPY fingerprints (hash_value, track_ref, time_offset) FROM STDIN") as copy:
-                        # Text COPY in large chunks instead of one write_row() call per row.
+                        # text COPY in large chunks, which avoids one write_row() call per row
                         for start in range(0, hashes.size, 200_000):
                             block = "\n".join(
                                 f"{h}\t{ref}\t{t}" for h, t in zip(hashes[start : start + 200_000].tolist(), times[start : start + 200_000].tolist())

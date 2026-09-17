@@ -1,8 +1,8 @@
 """Application exception hierarchy.
 
-Every exception carries a stable machine-readable ``code`` (surfaced verbatim in
-API error responses) and the HTTP status the API layer maps it to, so clients
-can branch on errors without parsing human-readable messages.
+Every exception carries a stable machine-readable ``code``, which the API returns
+verbatim, and the HTTP status the API layer maps it to. Clients can branch on the
+code and never have to parse the message.
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ class AudioFPError(Exception):
 
 
 class ConfigurationError(AudioFPError):
-    """Invalid or inconsistent configuration (bad env var, unknown storage type ...)."""
+    """Invalid or inconsistent configuration, such as a bad env var or an unknown storage type."""
 
     code = "configuration_error"
     http_status = 500
@@ -112,7 +112,7 @@ class UnsupportedFormatError(AudioProcessingError):
 
 
 class FFmpegNotFoundError(AudioProcessingError):
-    """ffmpeg is required for this input but is not installed / not on PATH."""
+    """ffmpeg is needed for this input but is not installed or not on PATH."""
 
     code = "ffmpeg_not_found"
     http_status = 422

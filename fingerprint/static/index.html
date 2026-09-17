@@ -20,7 +20,7 @@
       AudioFP
     </div>
     <div class="row gap-2">
-      <span class="status-pill" id="status-pill-mobile"><span class="status-dot"></span><span class="status-text">…</span></span>
+      <span class="status-pill" id="status-pill-mobile"><span class="status-dot"></span><span class="status-text">Connecting</span></span>
       <button class="icon-btn" data-action="toggle-theme" title="Toggle theme" aria-label="Toggle theme"></button>
     </div>
   </header>
@@ -52,15 +52,15 @@
       <div class="sidebar-section">
         <div class="sidebar-label">Library</div>
         <dl class="stat-list">
-          <div class="stat-row"><dt>Tracks</dt><dd id="st-tracks">—</dd></div>
-          <div class="stat-row"><dt>Fingerprints</dt><dd id="st-hashes">—</dd></div>
-          <div class="stat-row"><dt>Audio indexed</dt><dd id="st-duration">—</dd></div>
-          <div class="stat-row"><dt>Storage</dt><dd id="st-storage">—</dd></div>
+          <div class="stat-row"><dt>Tracks</dt><dd id="st-tracks">-</dd></div>
+          <div class="stat-row"><dt>Fingerprints</dt><dd id="st-hashes">-</dd></div>
+          <div class="stat-row"><dt>Audio indexed</dt><dd id="st-duration">-</dd></div>
+          <div class="stat-row"><dt>Storage</dt><dd id="st-storage">-</dd></div>
         </dl>
       </div>
 
       <div class="sidebar-footer">
-        <span class="status-pill" id="status-pill"><span class="status-dot"></span><span class="status-text">Connecting…</span></span>
+        <span class="status-pill" id="status-pill"><span class="status-dot"></span><span class="status-text">Connecting</span></span>
         <button class="icon-btn" data-action="toggle-theme" title="Toggle theme" aria-label="Toggle theme"></button>
       </div>
     </aside>
@@ -73,7 +73,7 @@
         <div class="page-header">
           <div>
             <h1 id="search-title">Search</h1>
-            <p>Identify a clip, or find every place a pattern appears across your library.</p>
+            <p>Identify a clip, or find every place a pattern turns up in your library.</p>
           </div>
           <div class="segmented" role="radiogroup" aria-label="Search mode">
             <label class="segment"><input type="radio" name="mode" value="identify" checked /><span>Identify clip</span></label>
@@ -86,7 +86,7 @@
           <input type="file" id="search-input" accept="audio/*,video/*" hidden />
           <div class="dz-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
           <div class="dz-title">Drop an audio or video clip</div>
-          <div class="dz-sub">or click to browse · 3 seconds is usually enough</div>
+          <div class="dz-sub">or click to browse (3 seconds is usually enough)</div>
           <div class="dz-formats" id="search-formats"></div>
           <div class="dz-actions">
             <button class="btn btn-ghost" id="record-btn" type="button" title="Record from your microphone">
@@ -116,9 +116,9 @@
             <button class="btn btn-ghost btn-sm" id="adv-toggle" type="button" aria-expanded="false" aria-controls="adv-panel">Thresholds</button>
           </div>
           <div class="adv-panel hidden" id="adv-panel">
-            <label class="field">Min confidence<input type="number" id="opt-minconf" min="0" max="1" step="0.01" /><small>Fraction of the matched region's hashes that align (0–1).</small></label>
-            <label class="field">Min aligned hashes<input type="number" id="opt-minaligned" min="1" step="1" /><small>Absolute floor of distinct hashes voting for one offset.</small></label>
-            <label class="field">Min peak ratio<input type="number" id="opt-minratio" min="0" step="0.5" /><small>Spike height vs. histogram background. Chance matches stay below ~8.</small></label>
+            <label class="field">Min confidence<input type="number" id="opt-minconf" min="0" max="1" step="0.01" /><small>Fraction of the matched region's hashes that align (0 to 1).</small></label>
+            <label class="field">Min aligned hashes<input type="number" id="opt-minaligned" min="1" step="1" /><small>Hard floor on the number of distinct hashes voting for one offset.</small></label>
+            <label class="field">Min peak ratio<input type="number" id="opt-minratio" min="0" step="0.5" /><small>Spike height over the histogram background. Chance matches stay below ~8.</small></label>
             <button class="btn btn-ghost btn-sm" id="adv-reset" type="button">Reset to server defaults</button>
           </div>
         </div>
@@ -136,7 +136,7 @@
         <div class="page-header">
           <div>
             <h1 id="library-title">Library</h1>
-            <p>Everything that has been fingerprinted. Upload files or index a folder on the server.</p>
+            <p>Everything that has been fingerprinted so far. Upload files here or index a folder on the server.</p>
           </div>
         </div>
 
@@ -146,7 +146,7 @@
             <div class="drop-zone drop-zone-sm" id="lib-zone" role="button" tabindex="0" aria-label="Choose files to upload and index">
               <input type="file" id="lib-input" accept="audio/*,video/*" multiple hidden />
               <div class="dz-title">Drop files here or click to browse</div>
-              <div class="dz-sub">Duplicates are detected automatically · indexing runs in the background</div>
+              <div class="dz-sub">Duplicates are detected automatically and indexing runs in the background</div>
             </div>
             <div class="upload-meta">
               <label class="field-inline">Tags for this batch<input type="text" id="upload-tags" placeholder="e.g. campaign-a, inbound" /></label>
@@ -168,13 +168,13 @@
         <div class="toolbar">
           <div class="search-field">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <input type="search" id="lib-search" placeholder="Search title, artist, filename, tag…  (press /)" aria-label="Search library" />
+            <input type="search" id="lib-search" placeholder="Search title, artist, filename or tag (press /)" aria-label="Search library" />
           </div>
           <select id="lib-sort" aria-label="Sort by">
             <option value="indexed_at:desc">Newest first</option>
             <option value="indexed_at:asc">Oldest first</option>
-            <option value="title:asc">Title A–Z</option>
-            <option value="title:desc">Title Z–A</option>
+            <option value="title:asc">Title A-Z</option>
+            <option value="title:desc">Title Z-A</option>
             <option value="duration:desc">Longest</option>
             <option value="duration:asc">Shortest</option>
             <option value="num_hashes:desc">Most fingerprints</option>
@@ -206,7 +206,7 @@
         <div class="page-header">
           <div>
             <h1 id="activity-title">Activity</h1>
-            <p>Background indexing jobs. History survives restarts; a job interrupted by a restart is marked as such.</p>
+            <p>Background indexing jobs. The history survives restarts, and a job that a restart cut short shows as interrupted.</p>
           </div>
           <div class="row gap-2">
             <select id="jobs-filter" aria-label="Filter jobs"><option value="">All</option><option value="active">Active</option><option value="completed">Completed</option><option value="failed,interrupted">Failed</option><option value="cancelled">Cancelled</option></select>

@@ -1,8 +1,9 @@
 """Shared fixtures: synthetic audio, settings, storage and a Flask test client.
 
-All audio is generated on the fly (no binary fixtures in the repo).  The
-"diverse" generator mimics speech/music-like material - random pitch glides
-with harmonics and noise bursts - so hashes are varied and chance matches rare.
+All audio is generated on the fly, so the repo carries no binary fixtures. The
+generator produces something between speech and music: random pitch glides
+with harmonics, plus noise bursts. That keeps the hashes varied and chance
+matches rare.
 """
 
 from __future__ import annotations
@@ -61,7 +62,7 @@ def audio_dir(tmp_path_factory) -> Path:
     d = tmp_path_factory.mktemp("audio")
     for i, name in enumerate(["Alpha Band - First Song", "Beta - Second Song", "Gamma Call"]):
         write_wav(d / f"{name}.wav", synth_signal(seed=100 + i, seconds=25 + 5 * i))
-    src = synth_signal(seed=101, seconds=30)  # == "Beta - Second Song"
+    src = synth_signal(seed=101, seconds=30)  # seed 101 is the second track above, the Beta song
     clip = src[int(12.0 * SRC_SR) : int(16.0 * SRC_SR)]
     write_wav(d / "clip_second_song_at_12s.wav", clip)
     rng = np.random.default_rng(7)

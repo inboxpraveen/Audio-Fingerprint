@@ -1,12 +1,14 @@
 """Background job manager.
 
-Long-running work (indexing uploads and folders) runs on a small, bounded
-thread pool.  Jobs are thread-safe, cancellable, keep a bounded error list and
-are optionally persisted as JSON files so history survives restarts (a job that
-was running when the process died is reported as ``interrupted``).
+Long-running work (indexing uploads and folders) runs on a small thread pool
+with a fixed number of workers. Jobs are thread-safe and cancellable, keep a
+capped error list, and can be written out as JSON files so the history survives
+a restart. A job that was still running when the process died comes back as
+``interrupted``.
 
-The manager is deliberately storage-agnostic and dependency-free so it can be
-reused for any future job type (re-indexing, exports, transcription ...).
+The manager knows nothing about storage and pulls in nothing beyond the standard
+library and the package's own utils, so other job types (re-indexing, exports,
+transcription) can use it later on.
 """
 
 from __future__ import annotations

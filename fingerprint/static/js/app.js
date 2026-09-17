@@ -1,7 +1,7 @@
-/* AudioFP web UI — vanilla JS, no build step.
+/* AudioFP web UI. Plain JS, no build step.
  *
- * Sections: prefs · api · ui helpers · theme · router · system status ·
- * search · library · activity · settings · boot.
+ * Sections, in file order: prefs, api, ui helpers, theme, router, system status,
+ * search, library, activity, settings, boot.
  */
 (() => {
   "use strict";
@@ -52,7 +52,7 @@
     put(path, json) { return this.request(path, { method: "PUT", json }); },
     patch(path, json) { return this.request(path, { method: "PATCH", json }); },
     del(path) { return this.request(path, { method: "DELETE" }); },
-    // <audio> cannot send headers: when a key is set, ask the server for a short-lived, track-scoped token.
+    // an <audio> element can't send headers, so with a key set we fetch a short-lived token scoped to this track
     async streamUrl(trackId) {
       const plain = `${BASE}/tracks/${encodeURIComponent(trackId)}/audio`;
       if (!this.key()) return plain;
@@ -60,7 +60,7 @@
       return res && res.url ? res.url : plain;
     },
     upload(path, formData, onProgress) {
-      // XHR for upload progress events.
+      // XHR, because fetch has no upload progress events
       return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open("POST", BASE + path);
@@ -107,8 +107,8 @@
       if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); toast(label, "ok"); return; }
       const ta = document.createElement("textarea"); ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
       document.body.appendChild(ta); ta.select(); const ok = document.execCommand("copy"); ta.remove();
-      toast(ok ? label : "Copy failed - select the text manually", ok ? "ok" : "warn");
-    } catch { toast("Copy failed - select the text manually", "warn"); }
+      toast(ok ? label : "Copy failed, select the text by hand", ok ? "ok" : "warn");
+    } catch { toast("Copy failed, select the text by hand", "warn"); }
   }
 
   function toast(msg, type = "info", { detail = null, duration = 5000 } = {}) {
@@ -173,7 +173,7 @@
       this.prompting = true;
       const value = await modal.prompt("API key required", (err && err.message) || "This server requires an API key.", { type: "password", placeholder: "Paste the value of AUDIOFP_API_KEY" });
       this.prompting = false;
-      if (value) { prefs.set("apiKey", value.trim()); toast("API key saved. Retrying…", "ok"); location.reload(); }
+      if (value) { prefs.set("apiKey", value.trim()); toast("API key saved, retrying", "ok"); location.reload(); }
     },
   };
 
@@ -198,7 +198,7 @@
     go(view) { if (!VIEWS.includes(view)) view = "search"; if (location.hash !== "#" + view) location.hash = view; else this.render(); },
     render() {
       const view = (location.hash || "#search").slice(1).split("?")[0];
-      if (!VIEWS.includes(view)) { if (this.current) return; }  // e.g. "#main" from the skip link: keep the current view
+      if (!VIEWS.includes(view)) { if (this.current) return; }  // e.g. "#main" from the skip link, stay on the current view
       const target = VIEWS.includes(view) ? view : "search";
       $$(".view").forEach((v) => v.classList.toggle("active", v.id === "view-" + target));
       $$("[data-view]").forEach((a) => a.classList.toggle("active", a.dataset.view === target));
@@ -222,7 +222,7 @@
         const stats = await api.get("/stats");
         this.renderStats(stats);
         const ok = this.health.status === "ok";
-        this.pill(ok ? "" : "warn", `${fmt.num(stats.total_tracks)} track${stats.total_tracks === 1 ? "" : "s"}${this.health.ffmpeg && !this.health.ffmpeg.available ? " · no ffmpeg" : ""}`);
+        this.pill(ok ? "" : "warn", `${fmt.num(stats.total_tracks)} track${stats.total_tracks === 1 ? "" : "s"}${this.health.ffmpeg && !this.health.ffmpeg.available ? ", no ffmpeg" : ""}`);
         const active = (this.health.jobs && this.health.jobs.active) || 0;
         $("#nav-active-jobs").textContent = active; $("#nav-active-jobs").classList.toggle("hidden", !active);
         this.applyFeatures();
@@ -236,7 +236,7 @@
       $("#st-tracks").textContent = fmt.num(s.total_tracks);
       $("#st-hashes").textContent = fmt.num(s.total_hashes);
       $("#st-duration").textContent = fmt.dur(s.total_duration_sec);
-      $("#st-storage").textContent = (s.storage_type || "-") + (s.db_size_bytes ? ` · ${fmt.size(s.db_size_bytes)}` : "");
+      $("#st-storage").textContent = (s.storage_type || "-") + (s.db_size_bytes ? `, ${fmt.size(s.db_size_bytes)}` : "");
     },
     applyFeatures() {
       const info = this.info; if (!info) return;
@@ -286,8 +286,8 @@
     modeChanged() {
       const mode = $("input[name='mode']:checked").value;
       $("#mode-hint").textContent = mode === "identify"
-        ? "Best match per track — “what is this clip?”. Works with 3-second snippets, even noisy ones."
-        : "Every place the query and a track overlap. Index short patterns (a jingle, a disclaimer) and search with a long recording — or the other way round.";
+        ? "The best match per track, for when you want to know what a clip is. Works with 3-second snippets, even noisy ones."
+        : "Every place the query and a track overlap. Index short patterns (a jingle, a disclaimer) and search with a long recording, or the other way round.";
       this.saveOptions();
     },
     saveOptions() {
@@ -306,7 +306,7 @@
       $("#search-results").innerHTML = "";
       if (file) {
         $("#search-fname").textContent = file.name;
-        $("#search-fmeta").textContent = `${fmt.size(file.size)}${file.type ? " · " + file.type : ""}`;
+        $("#search-fmeta").textContent = `${fmt.size(file.size)}${file.type ? ", " + file.type : ""}`;
         $("#search-btn").focus();
       }
     },
@@ -316,7 +316,7 @@
       this.searching = true;
       if (this.player) { this.player.pause(); this.player = null; }
       const btn = $("#search-btn"); const original = btn.innerHTML;
-      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Searching…';
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Searching';
       $("#search-results").innerHTML = '<div class="skeleton" style="height:120px"></div>';
       const fd = new FormData();
       fd.append("audio", file, file.name);
@@ -336,8 +336,8 @@
     renderError(e) {
       let hint = "";
       if (e.code === "ffmpeg_not_found") hint = "Install ffmpeg on the server to search with video or M4A/AAC files, or convert the clip to WAV/MP3/FLAC first.";
-      else if (e.code === "audio_decode_error") hint = "The file could not be decoded. Try re-exporting it, or check that it is not empty.";
-      else if (e.code === "payload_too_large") hint = "Trim the clip — a few seconds is enough for identification.";
+      else if (e.code === "audio_decode_error") hint = "The file could not be decoded. Try exporting it again, and check that it isn't empty.";
+      else if (e.code === "payload_too_large") hint = "Trim the clip. A few seconds is enough to identify it.";
       $("#search-results").innerHTML = `<div class="notice err"><b>${esc(e.message)}</b>${hint ? `<br>${esc(hint)}` : ""}${e.requestId ? `<br><small class="mono">request ${esc(e.requestId)}</small>` : ""}</div>`;
     },
     render(data) {
@@ -353,9 +353,9 @@
       let html = `<div class="results-header"><h2>${data.found ? `${data.matches.length} match${data.matches.length === 1 ? "" : "es"}` : "No match"}</h2>${meta}</div>`;
       if (q.truncated) html += `<div class="notice warn">Only the first ${fmt.dur(q.duration_sec)} of the file were analysed (server limit AUDIOFP_MAX_QUERY_SECONDS).</div>`;
       if (!data.found) {
-        html += `<div class="no-results"><div class="big">🔍</div><h3>Nothing above the thresholds</h3>
-          <p>Nothing in the library aligned with this clip strongly enough (min confidence ${data.thresholds.min_confidence}, min aligned ${data.thresholds.min_aligned_hashes}, min peak ratio ${data.thresholds.min_peak_ratio}).</p>
-          <ul><li>Use a longer or cleaner clip — 5–10 seconds helps with noisy audio.</li><li>Check the track is actually in the library.</li><li>Lower the thresholds (“Thresholds” above) if you expect weak matches.</li></ul></div>`;
+        html += `<div class="no-results"><div class="big">${ICON.search}</div><h3>Nothing above the thresholds</h3>
+          <p>Nothing in the library lined up with this clip well enough (min confidence ${data.thresholds.min_confidence}, min aligned ${data.thresholds.min_aligned_hashes}, min peak ratio ${data.thresholds.min_peak_ratio}).</p>
+          <ul><li>Try a longer or cleaner clip. Something like 5 to 10 seconds helps with noisy audio.</li><li>Check the track is actually in the library.</li><li>Lower the thresholds (the Thresholds button above) if you expect weak matches.</li></ul></div>`;
       } else {
         data.matches.forEach((m, i) => (html += this.matchCard(m, i === 0, data)));
       }
@@ -372,18 +372,18 @@
     matchCard(m, best, data) {
       const name = m.display_name || m.title || m.filename || "Untitled";
       const quality = m.quality || "weak";
-      const qualityHelp = { strong: "High confidence and a very sharp alignment spike.", likely: "Clear alignment; verify by listening if it matters.", weak: "Above the thresholds but not by much — could be a partial or noisy match." }[quality];
+      const qualityHelp = { strong: "High confidence and a very sharp alignment spike.", likely: "Clear alignment. Check it by listening if it matters.", weak: "Above the thresholds, but not by much. Could be a partial or noisy match." }[quality];
       const negative = m.offset_sec < 0;
       const qdur = data.query.duration_sec;
-      // Timeline: where the query audio sits in the track (positive offsets) and/or where track audio sits in the query.
-      const trackSegs = m.occurrences.map((o) => ({ start: o.track_start_sec, end: o.track_end_sec, q: o.quality, seek: o.track_start_sec, label: `${fmt.sec(o.track_start_sec)}–${fmt.sec(o.track_end_sec)}` }));
-      const querySegs = m.occurrences.map((o) => ({ start: o.query_start_sec, end: o.query_end_sec, q: o.quality, seek: o.track_start_sec, label: `${fmt.sec(o.query_start_sec)}–${fmt.sec(o.query_end_sec)}` }));
+      // up to two timelines: where the query audio sits in the track (positive offsets), and where track audio sits in the query
+      const trackSegs = m.occurrences.map((o) => ({ start: o.track_start_sec, end: o.track_end_sec, q: o.quality, seek: o.track_start_sec, label: `${fmt.sec(o.track_start_sec)} to ${fmt.sec(o.track_end_sec)}` }));
+      const querySegs = m.occurrences.map((o) => ({ start: o.query_start_sec, end: o.query_end_sec, q: o.quality, seek: o.track_start_sec, label: `${fmt.sec(o.query_start_sec)} to ${fmt.sec(o.query_end_sec)}` }));
       const tl = (title, segs, total, subtitle) => `<div class="timeline"><div class="tl-label"><b>${esc(title)}</b><span>${esc(subtitle)}</span></div>
-        <div class="tl-bar"><div class="tl-ticks"></div>${segs.map((s) => `<div class="tl-seg ${s.q}" data-track="${esc(m.track_id)}" data-seek="${s.seek}" style="left:${(100 * s.start / Math.max(total, 0.001)).toFixed(2)}%;width:${Math.max(0.6, 100 * (s.end - s.start) / Math.max(total, 0.001)).toFixed(2)}%" title="${esc(s.label)} — click to play from here" role="button" tabindex="0"></div>`).join("")}</div></div>`;
+        <div class="tl-bar"><div class="tl-ticks"></div>${segs.map((s) => `<div class="tl-seg ${s.q}" data-track="${esc(m.track_id)}" data-seek="${s.seek}" style="left:${(100 * s.start / Math.max(total, 0.001)).toFixed(2)}%;width:${Math.max(0.6, 100 * (s.end - s.start) / Math.max(total, 0.001)).toFixed(2)}%" title="${esc(s.label)}, click to play from here" role="button" tabindex="0"></div>`).join("")}</div></div>`;
       let timelines = "";
-      if (m.duration) timelines += tl("In the track", trackSegs, m.duration, `${name} · ${fmt.dur(m.duration)}`);
-      if (negative || data.mode === "occurrences") timelines += tl("In your query", querySegs, qdur, `${data.query.filename || "query"} · ${fmt.dur(qdur)}`);
-      const occChips = m.occurrences.length > 1 ? `<div class="occ-list">${m.occurrences.map((o) => `<span class="occ-chip" role="button" tabindex="0" data-track="${esc(m.track_id)}" data-seek="${o.track_start_sec}" title="click to play from here"><span class="badge ${o.quality}">${esc(o.quality)}</span>${o.offset_sec < 0 ? `in query at ${fmt.sec(o.query_offset_sec)}` : `in track at ${fmt.sec(o.track_start_sec)}`} · ${o.aligned_hashes} aligned</span>`).join("")}</div>` : "";
+      if (m.duration) timelines += tl("In the track", trackSegs, m.duration, `${name}, ${fmt.dur(m.duration)}`);
+      if (negative || data.mode === "occurrences") timelines += tl("In your query", querySegs, qdur, `${data.query.filename || "query"}, ${fmt.dur(qdur)}`);
+      const occChips = m.occurrences.length > 1 ? `<div class="occ-list">${m.occurrences.map((o) => `<span class="occ-chip" role="button" tabindex="0" data-track="${esc(m.track_id)}" data-seek="${o.track_start_sec}" title="click to play from here"><span class="badge ${o.quality}">${esc(o.quality)}</span>${o.offset_sec < 0 ? `in query at ${fmt.sec(o.query_offset_sec)}` : `in track at ${fmt.sec(o.track_start_sec)}`}, ${o.aligned_hashes} aligned</span>`).join("")}</div>` : "";
       const where = negative
         ? `Track audio found in your query at <b>${fmt.sec(m.query_offset_sec)}</b>`
         : `Clip starts at <b>${fmt.sec(m.track_offset_sec)}</b> in the track`;
@@ -391,10 +391,10 @@
         <div class="match-main">
           <div class="match-title">${best ? `<span class="badge tag">★ best</span>` : ""}${esc(name)}<span class="badge ${quality}" title="${esc(qualityHelp)}">${esc(quality)}</span></div>
           ${m.artist ? `<div class="match-artist">${esc(m.artist)}</div>` : ""}
-          <div class="match-explain">${where} · <b>${m.aligned_hashes}</b> aligned hashes · peak ratio <b>${m.peak_ratio}</b>${m.occurrences.length > 1 ? ` · <b>${m.occurrences.length}</b> occurrences` : ""}</div>
+          <div class="match-explain">${where}, <b>${m.aligned_hashes}</b> aligned hashes, peak ratio <b>${m.peak_ratio}</b>${m.occurrences.length > 1 ? `, <b>${m.occurrences.length}</b> occurrences` : ""}</div>
           ${m.tags && m.tags.length ? `<div class="match-tags">${m.tags.map((t) => `<span class="badge tag">${esc(t)}</span>`).join("")}</div>` : ""}
         </div>
-        <div class="match-score"><div class="score-big">${fmt.pct(m.confidence)}</div><div class="score-label">confidence</div><div class="match-explain">${esc(fmt.ext(m.filename))}${m.duration ? " · " + fmt.dur(m.duration) : ""}</div></div>
+        <div class="match-score"><div class="score-big">${fmt.pct(m.confidence)}</div><div class="score-label">confidence</div><div class="match-explain">${esc(fmt.ext(m.filename))}${m.duration ? ", " + fmt.dur(m.duration) : ""}</div></div>
         ${timelines}${occChips}
         <div class="match-footer">
           <button class="play-btn" data-play="${esc(m.track_id)}" data-seek="${negative ? m.track_start_sec : m.track_offset_sec}" title="Play from the matched position">${ICON.play}</button>
@@ -412,7 +412,7 @@
       if (!audio) {
         audio = document.createElement("audio"); audio.controls = true; audio.preload = "metadata";
         try { audio.src = await api.streamUrl(trackId); } catch (e) { return showError("Cannot play", e); }
-        audio.onerror = () => toast("Could not play this track — the original file may have been removed from disk.", "err");
+        audio.onerror = () => toast("Could not play this track. The original file may have been removed from disk.", "err");
         holder.appendChild(audio);
       }
       if (this.player && this.player !== audio) this.player.pause();
@@ -425,19 +425,19 @@
       this.recent.unshift({ name: file.name, at: Date.now(), found: data.found, top: data.found ? (data.matches[0].display_name || data.matches[0].filename) : null, conf: data.found ? data.matches[0].confidence : null, mode: data.mode });
       this.recent = this.recent.slice(0, 8);
       $("#recent-searches").classList.remove("hidden");
-      $("#recent-list").innerHTML = this.recent.map((r) => `<div class="recent-item"><span class="name" title="${esc(r.name)}">${esc(r.name)}</span><span class="badge">${esc(r.mode)}</span>${r.found ? `<span class="badge ok">${esc(r.top)} · ${fmt.pct(r.conf)}</span>` : `<span class="badge">no match</span>`}<span class="muted">${new Date(r.at).toLocaleTimeString()}</span></div>`).join("");
+      $("#recent-list").innerHTML = this.recent.map((r) => `<div class="recent-item"><span class="name" title="${esc(r.name)}">${esc(r.name)}</span><span class="badge">${esc(r.mode)}</span>${r.found ? `<span class="badge ok">${esc(r.top)}, ${fmt.pct(r.conf)}</span>` : `<span class="badge">no match</span>`}<span class="muted">${new Date(r.at).toLocaleTimeString()}</span></div>`).join("");
     },
     /* --- microphone recording --- */
     async startRecording() {
       if (this.recorder) return;
-      if (!window.isSecureContext) return toast("Microphone recording needs a secure context: open the app via https:// or http://localhost.", "warn", { duration: 8000 });
+      if (!window.isSecureContext) return toast("Microphone recording needs a secure context. Open the app over https:// or at http://localhost.", "warn", { duration: 8000 });
       if (!navigator.mediaDevices || !window.MediaRecorder) return toast("Recording is not supported in this browser.", "warn");
       const candidates = ["audio/ogg;codecs=opus", "audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
       const mime = candidates.find((c) => MediaRecorder.isTypeSupported(c));
       if (!mime) return toast("No supported recording format in this browser.", "warn");
       const needsFfmpeg = !mime.startsWith("audio/ogg");
       if (needsFfmpeg && system.health && system.health.ffmpeg && !system.health.ffmpeg.available) {
-        return toast("This browser records WebM/MP4, which the server can only decode with ffmpeg (not installed). Use Firefox (records OGG) or upload a file instead.", "warn", { duration: 9000 });
+        return toast("This browser records WebM or MP4. The server needs ffmpeg to decode those and it isn't installed. Use Firefox, which records OGG, or upload a file instead.", "warn", { duration: 9000 });
       }
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -465,7 +465,7 @@
         const blob = new Blob(this.recChunks, { type });
         if (blob.size < 2000) return toast("Recording was too short.", "warn");
         this.setFile(new File([blob], `recording-${new Date().toISOString().replace(/[:.]/g, "-")}.${ext}`, { type }));
-        toast("Recording ready — press Search", "ok");
+        toast("Recording ready, press Search", "ok");
       };
       if (rec.state !== "inactive") rec.stop();
       this.recorder = null;
@@ -515,9 +515,9 @@
       if (!silent && !this.items.length) $("#track-grid").innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
       try {
         const data = await api.get("/tracks?" + params.toString());
-        if (data.page > data.pages && data.total > 0) { this.page = data.pages; return this.load({ silent }); }  // e.g. after deleting the last item of the last page
+        if (data.page > data.pages && data.total > 0) { this.page = data.pages; return this.load({ silent }); }  // happens after deleting the last item on the last page
         this.items = data.items; this.total = data.total; this.pages = data.pages; this.page = data.page;
-        $("#lib-summary").textContent = data.total ? `${data.total} track${data.total === 1 ? "" : "s"}${q ? ` matching “${q}”` : ""} · page ${data.page} of ${data.pages}` : (q ? `Nothing matches “${q}”` : "");
+        $("#lib-summary").textContent = data.total ? `${data.total} track${data.total === 1 ? "" : "s"}${q ? ` matching "${q}"` : ""}, page ${data.page} of ${data.pages}` : (q ? `Nothing matches "${q}"` : "");
         this.renderGrid(); this.renderPager();
       } catch (e) {
         showError("Could not load the library", e);
@@ -533,7 +533,7 @@
     renderGrid() {
       const grid = $("#track-grid");
       if (!this.items.length) {
-        grid.innerHTML = `<div class="empty-state"><h3>${$("#lib-search").value ? "No tracks match your search" : "Your library is empty"}</h3><p>${$("#lib-search").value ? "Try another term or clear the filter." : "Upload files above, index a folder on the server, or run <code>audiofp index &lt;folder&gt;</code>."}</p></div>`;
+        grid.innerHTML = `<div class="empty-state"><h3>${$("#lib-search").value ? "No tracks match your search" : "Your library is empty"}</h3><p>${$("#lib-search").value ? "Try another term or clear the filter." : "Upload files above, index a folder on the server, or run <code>audiofp index &lt;folder&gt;</code> from a terminal."}</p></div>`;
         return;
       }
       grid.innerHTML = this.items.map((t) => {
@@ -564,7 +564,7 @@
       btn("‹", this.page - 1);
       const pages = new Set([1, this.pages, this.page - 1, this.page, this.page + 1].filter((p) => p >= 1 && p <= this.pages));
       let last = 0;
-      [...pages].sort((a, b) => a - b).forEach((p) => { if (p - last > 1) { const s = document.createElement("span"); s.textContent = "…"; s.className = "muted"; el.appendChild(s); } btn(String(p), p, p === this.page ? "current" : ""); last = p; });
+      [...pages].sort((a, b) => a - b).forEach((p) => { if (p - last > 1) { const s = document.createElement("span"); s.textContent = "..."; s.className = "muted"; el.appendChild(s); } btn(String(p), p, p === this.page ? "current" : ""); last = p; });
       btn("›", this.page + 1);
     },
     toggleSelect(on = !this.selecting) {
@@ -582,7 +582,7 @@
     },
     async deleteTrack(id, { deleteFile = false } = {}) {
       const t = this.items.find((x) => x.track_id === id) || {};
-      if (!(await modal.confirm("Delete this track?", `“${esc(t.title || t.filename || id)}” and its fingerprints will be removed.${deleteFile ? " The uploaded file will be deleted too." : ""}`, { danger: true, ok: "Delete" }))) return;
+      if (!(await modal.confirm("Delete this track?", `"${esc(t.title || t.filename || id)}" and its fingerprints will be removed.${deleteFile ? " The uploaded file will be deleted too." : ""}`, { danger: true, ok: "Delete" }))) return;
       try { await api.del(`/tracks/${encodeURIComponent(id)}${deleteFile ? "?delete_file=true" : ""}`); toast("Track deleted", "ok"); this.closeDrawer(); this.load(); system.refresh(); }
       catch (e) { showError("Delete failed", e); }
     },
@@ -613,7 +613,7 @@
         body.innerHTML = `
           <div class="drawer-art" style="${a.style}">${a.bars}</div>
           <audio controls preload="none" src="${esc(streamSrc)}" style="width:100%"></audio>
-          ${t.file_exists ? "" : '<div class="notice warn">The original file is no longer on disk. Searching still works; playback does not.</div>'}
+          ${t.file_exists ? "" : '<div class="notice warn">The original file is no longer on disk. Search still works, but playback will not.</div>'}
           <form id="track-edit" class="form-grid">
             <label class="field">Title<input name="title" value="${esc(t.title)}" /></label>
             <label class="field">Artist / speaker<input name="artist" value="${esc(t.artist)}" /></label>
@@ -622,8 +622,8 @@
           </form>
           <dl class="kv">
             <dt>Duration</dt><dd>${fmt.dur(t.duration)}</dd>
-            <dt>Fingerprints</dt><dd>${(t.num_hashes || 0).toLocaleString()} hashes · ${(t.num_peaks || 0).toLocaleString()} peaks</dd>
-            <dt>File</dt><dd>${esc(t.filename)} · ${fmt.size(t.file_size)} · ${esc(t.source_type)}</dd>
+            <dt>Fingerprints</dt><dd>${(t.num_hashes || 0).toLocaleString()} hashes, ${(t.num_peaks || 0).toLocaleString()} peaks</dd>
+            <dt>File</dt><dd>${esc(t.filename)}, ${fmt.size(t.file_size)}, ${esc(t.source_type)}</dd>
             <dt>Path</dt><dd>${esc(t.filepath || "-")}</dd>
             <dt>Indexed</dt><dd>${fmt.date(t.indexed_at)} (${esc(t.metadata && t.metadata.source || "?")})</dd>
             <dt>Content hash</dt><dd>${esc(t.content_hash || "-")}</dd>
@@ -668,10 +668,10 @@
       if (!item.el) { item.el = document.createElement("li"); $("#upload-queue").prepend(item.el); }
       const cls = { error: "err", indexed: "ok", duplicate: "dup" }[item.status] || "";
       item.el.className = `uq-item ${cls}`;
-      const label = { queued: "Queued", uploading: `Uploading ${Math.round((item.progress || 0) * 100)}%`, indexing: "Indexing…", indexed: "Indexed", duplicate: "Already in the library (duplicate)", error: "Failed" }[item.status] || item.status;
+      const label = { queued: "Queued", uploading: `Uploading ${Math.round((item.progress || 0) * 100)}%`, indexing: "Indexing", indexed: "Indexed", duplicate: "Already in the library (duplicate)", error: "Failed" }[item.status] || item.status;
       item.el.innerHTML = `<span class="uq-name" title="${esc(item.file.name)}">${esc(item.file.name)}</span><span class="muted">${fmt.size(item.file.size)}</span>
         ${item.status === "uploading" ? `<div class="uq-bar"><i style="width:${Math.round((item.progress || 0) * 100)}%"></i></div>` : ""}
-        <span class="uq-status">${esc(label)}${item.message ? ` — ${esc(item.message)}` : ""}</span>`;
+        <span class="uq-status">${esc(label)}${item.message ? `: ${esc(item.message)}` : ""}</span>`;
     },
     async pump() {
       while (this.active < 2) {
@@ -742,7 +742,7 @@
       jobs.forEach((j) => {
         const prev = this.known.get(j.job_id);
         if (prev && prev !== j.status && ["completed", "failed", "cancelled", "interrupted"].includes(j.status)) {
-          const label = j.label.length > 60 ? "…" + j.label.slice(-57) : j.label;
+          const label = j.label.length > 60 ? "..." + j.label.slice(-57) : j.label;
           toast(`${j.type === "directory" ? "Folder" : "Upload"} job ${j.status}: ${label}`, j.status === "completed" ? "ok" : "warn");
         }
         this.known.set(j.job_id, j.status);
@@ -762,12 +762,12 @@
         parts.push(j.finished_at ? `finished ${fmt.ago(j.finished_at)}` : `started ${fmt.ago(j.started_at || j.created_at)}`);
         return `<article class="job-card" data-job="${esc(j.job_id)}">
           <div class="job-top"><span class="badge">${esc(j.type)}</span><span class="job-name" title="${esc(j.label)}">${esc(j.label)}</span><span class="job-status ${esc(j.status)}">${esc(j.status)}</span>
-            ${running ? `<button class="btn btn-ghost btn-sm" data-cancel="${esc(j.job_id)}" type="button" ${j.cancel_requested ? "disabled" : ""}>${j.cancel_requested ? "Cancelling…" : "Cancel"}</button>` : `<button class="icon-btn" data-remove="${esc(j.job_id)}" title="Remove from history" aria-label="Remove from history">×</button>`}
+            ${running ? `<button class="btn btn-ghost btn-sm" data-cancel="${esc(j.job_id)}" type="button" ${j.cancel_requested ? "disabled" : ""}>${j.cancel_requested ? "Cancelling" : "Cancel"}</button>` : `<button class="icon-btn" data-remove="${esc(j.job_id)}" title="Remove from history" aria-label="Remove from history">×</button>`}
           </div>
           <div class="progress-track"><div class="progress-fill ${fill}" style="width:${pct}%"></div></div>
           <div class="job-sub">${parts.map((p) => `<span>${esc(p)}</span>`).join("")}</div>
           ${j.error ? `<div class="notice err">${esc(j.error)}</div>` : ""}
-          ${j.error_count ? `<details class="job-errors" data-job="${esc(j.job_id)}" ${open.has(j.job_id) ? "open" : ""}><summary>${j.error_count} file${j.error_count === 1 ? "" : "s"} failed — show details</summary><ul data-errors="${esc(j.job_id)}"><li class="muted">Loading…</li></ul></details>` : ""}
+          ${j.error_count ? `<details class="job-errors" data-job="${esc(j.job_id)}" ${open.has(j.job_id) ? "open" : ""}><summary>${j.error_count} file${j.error_count === 1 ? "" : "s"} failed, show details</summary><ul data-errors="${esc(j.job_id)}"><li class="muted">Loading</li></ul></details>` : ""}
         </article>`;
       }).join("");
       if (focused) { const again = $(`[${focusedKind}="${CSS.escape(focused)}"]`, el); if (again) again.focus(); }
@@ -825,12 +825,12 @@
         const fp = info.fingerprint;
         const rows = [
           ["Version", info.version], ["Profile", info.profile], ["Storage", info.storage_type],
-          ["ffmpeg", info.ffmpeg.available ? `${info.ffmpeg.version || "available"} (${info.ffmpeg.path})` : "not installed — video/M4A/WMA unsupported"],
+          ["ffmpeg", info.ffmpeg.available ? `${info.ffmpeg.version || "available"} (${info.ffmpeg.path})` : "not installed, so no video, M4A or WMA"],
           ["Native formats", info.formats.native_audio.join(", ")], ["Via ffmpeg", [...info.formats.ffmpeg_audio, ...info.formats.video].join(", ")],
           ["Upload limit", `${info.limits.max_upload_mb} MB`], ["Max query length", fmt.dur(info.limits.max_query_seconds)],
           ["Directory indexing", info.features.directory_indexing ? (info.features.index_roots.length ? info.features.index_roots.join(", ") : "any path (development)") : "disabled"],
           ["Duplicate detection", info.features.dedupe], ["Auth", info.features.auth_required ? "API key required" : "open"],
-          ["Fingerprint", `sr ${fp.sample_rate} Hz · n_fft ${fp.n_fft} · hop ${fp.hop_length} · fan ${fp.fan_value} · neighbourhood ${fp.peak_neighborhood_size} · amp ≥ ${fp.min_amplitude} · Δt ${fp.min_hash_time_delta}–${fp.max_hash_time_delta}`],
+          ["Fingerprint", `sr ${fp.sample_rate} Hz, n_fft ${fp.n_fft}, hop ${fp.hop_length}, fan ${fp.fan_value}, neighbourhood ${fp.peak_neighborhood_size}, min amp ${fp.min_amplitude}, time delta ${fp.min_hash_time_delta} to ${fp.max_hash_time_delta}`],
           ["Signature", `${fp.signature} (algorithm v${fp.algorithm_version})`],
         ];
         $("#sys-info").innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("");

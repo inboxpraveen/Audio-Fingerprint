@@ -1,18 +1,18 @@
 """Streaming audio decoding.
 
-Audio is never loaded into memory in one piece.  :func:`iter_audio_chunks`
-yields fixed-size float32 mono blocks at the working sample rate, whatever the
+Audio is never loaded into memory in one piece. :func:`iter_audio_chunks`
+yields fixed-size float32 mono blocks at the working sample rate whatever the
 source container is, so fingerprinting an hour-long call recording needs the
 same few megabytes as a ten-second clip.
 
-Two backends are used:
+There are two backends. soundfile (libsndfile) handles WAV, FLAC, OGG/Opus,
+MP3, AIFF and the other formats libsndfile reads on its own, with no external
+binary. Resampling goes through the streaming resampler in ``soxr``, which
+produces the same output bit for bit as resampling the whole signal at once.
 
-* **soundfile** (libsndfile) for WAV, FLAC, OGG/Opus, MP3, AIFF ... - no
-  external binary required.  Resampling uses ``soxr``'s streaming resampler,
-  which is bit-identical to resampling the whole signal at once.
-* **ffmpeg** for everything else (M4A/AAC, WMA, every video container).  PCM is
-  read from ffmpeg's stdout pipe; stderr is drained by a helper thread so a
-  chatty decoder can never dead-lock the pipeline.
+ffmpeg handles everything else (M4A/AAC, WMA, every video container). PCM is
+read from ffmpeg's stdout pipe. A helper thread drains stderr, so a chatty
+decoder can't fill the pipe and deadlock the pipeline.
 """
 
 from __future__ import annotations
@@ -58,7 +58,7 @@ def ffmpeg_info(binary: str = DEFAULT_FFMPEG) -> FFmpegInfo:
         return FFmpegInfo(False)
     try:
         proc = subprocess.run([resolved, "-version"], capture_output=True, text=True, timeout=15, **_popen_flags())
-    except (OSError, subprocess.SubprocessError) as exc:  # pragma: no cover - environment specific
+    except (OSError, subprocess.SubprocessError) as exc:  # pragma: no cover (environment specific)
         logger.warning("ffmpeg found at %s but could not be executed: %s", resolved, exc)
         return FFmpegInfo(False, resolved)
     if proc.returncode != 0:
@@ -90,7 +90,7 @@ _LIBSNDFILE_PREFIX = re.compile(r"^Error opening '.*?':\s*")
 
 
 def _clean_sndfile_message(exc: Exception) -> str:
-    """libsndfile messages embed the full path; keep only the reason."""
+    """libsndfile puts the full path in its messages. Keep only the reason."""
     return _LIBSNDFILE_PREFIX.sub("", str(exc)).strip() or type(exc).__name__
 
 
@@ -182,13 +182,13 @@ def _iter_ffmpeg(
         "pipe:1",
     ]
     if max_samples is not None:
-        # Let ffmpeg stop early instead of decoding an hour we will discard.
+        # tell ffmpeg where to stop, so it doesn't decode an hour we'd throw away
         cmd[-1:-1] = ["-t", f"{max_samples / sample_rate + 1:.3f}"]
 
     logger.debug("ffmpeg decode: %s", " ".join(cmd))
     try:
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **_popen_flags())
-    except OSError as exc:  # pragma: no cover - environment specific
+    except OSError as exc:  # pragma: no cover (environment specific)
         raise FFmpegNotFoundError(f"Could not start ffmpeg: {exc}. {FFMPEG_INSTALL_HINT}") from exc
 
     stderr_tail: collections.deque[str] = collections.deque(maxlen=20)
@@ -240,11 +240,11 @@ def _iter_ffmpeg(
         if timer:
             timer.cancel()
         if not finished and proc.poll() is None:
-            # Consumer stopped early (truncation / generator closed): stop decoding.
+            # the consumer stopped early (truncation, or the generator was closed), so stop ffmpeg too
             proc.kill()
         try:
             proc.wait(timeout=30)
-        except subprocess.TimeoutExpired:  # pragma: no cover - defensive
+        except subprocess.TimeoutExpired:  # pragma: no cover (defensive)
             proc.kill()
         drain_thread.join(timeout=5)
         for stream in (proc.stdout, proc.stderr):
@@ -286,7 +286,7 @@ def select_backend(path: str, ffmpeg_binary: str = DEFAULT_FFMPEG, display_name:
             details={"extension": ext},
         )
     if not ext:
-        # No extension: let libsndfile sniff the content; iter_audio_chunks falls back to ffmpeg.
+        # no extension: let libsndfile sniff the content, iter_audio_chunks falls back to ffmpeg if that fails
         return "soundfile"
     raise UnsupportedFormatError(
         f"Unsupported file type '{ext}'. Supported: {', '.join(sorted(e.lstrip('.') for e in formats.SUPPORTED_EXTENSIONS))}",

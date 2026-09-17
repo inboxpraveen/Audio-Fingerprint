@@ -64,7 +64,7 @@ def test_error_envelope_shapes(client):
     assert r.status_code == 413 and r.get_json()["code"] == "payload_too_large"
     r = client.put("/api/v1/settings", data=huge, content_type="application/json")
     assert r.status_code == 413
-    # Chunked bodies have no Content-Length, so they are refused rather than read into memory.
+    # Chunked bodies have no Content-Length, so they get refused before anything is read into memory.
     chunked = {"HTTP_TRANSFER_ENCODING": "chunked", "wsgi.input_terminated": True}
     for method, path in (("patch", "/api/v1/tracks/x"), ("put", "/api/v1/settings"), ("post", "/api/v1/tracks/bulk-delete")):
         r = getattr(client, method)(path, data=huge, content_type="application/json", environ_overrides=chunked)
@@ -96,13 +96,13 @@ def test_upload_search_edit_delete_flow(client, audio_dir, app):
     assert track["title"] == "Second Song" and track["artist"] == "Beta" and track["tags"] == ["music", "demo"]
     assert track["metadata"]["source"] == "upload"
 
-    # duplicate upload is reported, not re-indexed, and its file is discarded
+    # a duplicate upload is reported as one, nothing gets indexed again and the file is discarded
     dup = upload(client, str(audio_dir / "Beta - Second Song.wav"), name="copy.wav")
     assert dup["skipped"] == 1 and dup["result"]["status"] == "duplicate" and dup["result"]["duplicate_of"] == track_id
     uploads = os.listdir(app.extensions["audiofp"].settings.upload_dir_resolved)
     assert len(uploads) == 1
 
-    # failed upload is reported with a helpful error and the file is discarded
+    # a failed upload gets an error entry and its file is discarded too
     bad = upload(client, str(audio_dir / "broken.wav"))
     assert bad["status"] == "completed" and bad["failed"] == 1 and bad["errors"][0]["error_code"] == "audio_decode_error"
     assert len(os.listdir(app.extensions["audiofp"].settings.upload_dir_resolved)) == 1
@@ -234,7 +234,7 @@ def test_runtime_settings_persist(client, app):
 
 
 def test_runtime_close_waits_for_jobs_and_flushes(sqlite_settings):
-    """Shutdown cancels running jobs, lets them persist their state and flushes buffered rows; it is idempotent."""
+    """Shutdown cancels running jobs, lets them save their state and flushes buffered rows. Calling it more than once is fine."""
     import threading
 
     app = create_app(settings=sqlite_settings, configure_logs=False)
@@ -267,7 +267,7 @@ def test_api_key_auth(tmp_path, audio_dir):
     assert client.get("/api/v1/stats", headers={"Authorization": "Bearer s3cret"}).status_code == 200
     assert client.get("/").status_code == 200  # the UI shell itself is public
     assert client.get("/api/v1/openapi.json").status_code == 200  # spec is public
-    # <audio src> cannot send headers: a short-lived, track-scoped token is used instead of the key.
+    # <audio src> can't send headers, so streaming uses a short-lived token that is scoped to one track.
     assert client.get("/api/v1/stats?api_key=s3cret").status_code == 401  # the key is never accepted in a URL
     job = upload(client, str(audio_dir / "Gamma Call.wav"), headers={"X-API-Key": "s3cret"})
     track_id = job["result"]["track_id"]
@@ -306,7 +306,7 @@ def test_production_directory_indexing_requires_roots(tmp_path, audio_dir):
     app = create_app(settings=Settings.load(data_dir=str(tmp_path / "b"), index_roots=[str(tmp_path / "elsewhere")], **base), configure_logs=False)
     r = app.test_client().post("/api/v1/tracks/index-directory", json={"directory_path": str(audio_dir)})
     assert r.status_code == 403 and "allowed_roots" in r.get_json()["details"]
-    # a non-existent path outside the roots is also 403: existence is never revealed before authorisation
+    # a path outside the roots that doesn't exist is also 403, so the check never leaks whether a path exists
     r = app.test_client().post("/api/v1/tracks/index-directory", json={"directory_path": str(tmp_path / "does-not-exist")})
     assert r.status_code == 403
     app.extensions["audiofp"].close()

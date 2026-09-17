@@ -1,44 +1,45 @@
 """Offset-histogram matching (Wang 2003) with two search modes.
 
-Every hash shared between the query and an indexed track "votes" for the time
-offset ``track_frame - query_frame``.  Audio that is genuinely the same lines
-up at one offset and produces a sharp spike in the vote histogram; unrelated
-audio with coincidental hash collisions produces a flat, noisy histogram.
+Every hash shared between the query and an indexed track "votes" for a time
+offset, the track frame minus the query frame. Audio that really is the same
+lines up at one offset and produces a sharp spike in the vote histogram.
+Unrelated audio with chance hash collisions produces a flat, noisy histogram.
 
-Three complementary scores are computed per candidate:
+Three scores are computed per candidate.
 
 ``aligned_hashes``
-    Number of **distinct** query hashes voting for the best offset (after
-    merging +/- ``offset_tolerance_frames`` neighbouring bins, because a clip
-    rarely starts exactly on a frame boundary).  Counting distinct hashes
-    rather than raw votes neutralises sustained tones, which repeat one hash
-    for many frames and would otherwise fake an alignment.
+    Number of distinct query hashes voting for the best offset, after merging
+    the neighbouring bins within ``offset_tolerance_frames`` on either side
+    (a clip rarely starts exactly on a frame boundary). Raw votes would let a
+    sustained tone fake an alignment, because it repeats one hash for many
+    frames. Counting distinct hashes neutralises that.
 ``confidence``
-    ``aligned_hashes / distinct query hashes inside the matched span`` clamped
-    to [0, 1]: how much of the query region that overlaps the track is actually
-    explained by the alignment.  Normalising by the *matched region* (not the
-    whole query) keeps the score meaningful for "short clip vs long track",
-    "short indexed pattern vs long recording" and "two long recordings sharing
-    a segment".
+    ``aligned_hashes / distinct query hashes inside the matched span``,
+    clamped to [0, 1]. It says how much of the query region that overlaps the
+    track is explained by the alignment. Normalising by the matched region
+    keeps the score meaningful in three cases. It works for a short clip
+    against a long track, for a short indexed pattern found in a long
+    recording, and for two long recordings that share a segment.
 ``peak_ratio``
-    ``aligned_hashes / mean votes per non-empty offset bin away from the spike``
-    - the sharpness of the spike.  Chance matches sit around 3-9 regardless of
-    library size; true matches are typically well above 10.
+    ``aligned_hashes / mean votes per non-empty offset bin away from the
+    spike``, which is how sharp the spike is. Chance matches sit around 3 to 9
+    whatever the library size. True matches are usually well above 10.
 
 Modes:
 
 ``identify``
-    Best alignment per track (classic "what is this clip?").
+    Best alignment per track, the classic clip identification.
 ``occurrences``
-    *Every* spike above the thresholds per track.  Use it to find all places a
-    jingle, disclaimer or hold-music pattern appears - the building block for
-    QA-style pattern search on call recordings.  Offsets may be **negative**: a
-    negative offset means the indexed track starts *after* the query does, i.e.
-    the track's content is found inside the query at ``-offset`` (index short
-    patterns, search with a long recording).
+    Every spike above the thresholds per track. Use it to find all the places
+    a jingle, a disclaimer or a hold-music pattern appears, which is the
+    building block for QA-style pattern search on call recordings. Offsets can
+    be negative. A negative offset means the indexed track starts after the
+    query does, so the track's content is found inside the query at
+    ``-offset`` (index short patterns, search with a long recording).
 
 Every occurrence carries the span of query frames covered by its aligned
-hashes, so callers can say "pattern X covers 30.0-34.0 s of this recording".
+hashes, so callers can report that pattern X covers 30.0 to 34.0 s of a
+recording.
 """
 
 from __future__ import annotations
@@ -60,27 +61,26 @@ logger = logging.getLogger(__name__)
 
 MODES = ("identify", "occurrences")
 
-# A genuine alignment spans time: the aligned hashes must come from at least this
-# many distinct query frames.  Guards against a single shared instant (a chord, a
-# click) producing many simultaneous hash hits.
+# A real alignment spans time, so the aligned hashes must come from at least this
+# many distinct query frames. Guards against one shared instant (a chord, a click)
+# producing many simultaneous hash hits.
 MIN_ALIGNED_FRAMES = 3
 
-# Offset bins with at least this many (smoothed) votes are treated as potential
-# alignments and excluded from the background estimate.  Deliberately a constant,
-# not ``min_aligned_hashes``: lowering that threshold must not silently change how
-# ``peak_ratio`` is measured.
+# Offset bins with at least this many smoothed votes count as potential alignments
+# and are left out of the background estimate. This is a constant on purpose:
+# lowering min_aligned_hashes must not quietly change how peak_ratio is measured.
 SPIKE_VOTES = 10
 
-# Upper bound on offset bins examined per track when looking for occurrences.  Very
+# Upper bound on offset bins examined per track when looking for occurrences. Very
 # repetitive material (hold music, synthetic tones) can produce thousands of bins
-# above the vote floor; the strongest ones are examined first, so real matches are
-# never lost by the cap.
+# above the vote floor. The strongest bins are examined first, so the cap doesn't
+# lose real matches.
 MAX_CANDIDATE_BINS = 400
 
 
 @dataclass
 class Occurrence:
-    offset_frames: int  # track_frame - query_frame at this alignment
+    offset_frames: int  # track frame minus query frame at this alignment
     aligned_hashes: int
     confidence: float
     peak_ratio: float
@@ -155,7 +155,7 @@ class _Votes:
     """All votes of one candidate track."""
 
     ref: int
-    offsets: np.ndarray  # track_frame - query_frame per vote
+    offsets: np.ndarray  # track frame minus query frame, per vote
     qtimes: np.ndarray  # query anchor frame per vote
     qhashes: np.ndarray  # query hash value per vote
 
@@ -255,9 +255,9 @@ class Matcher:
         ends = np.concatenate((boundaries, [refs_sorted.size]))
         diag.candidate_tracks = int(starts.size)
 
-        # Vectorised prefilter: a track can only pass if some offset bin, even after +/-tolerance
-        # smoothing, could reach min_aligned_hashes. Computed for all tracks at once so that a big
-        # library full of chance coincidences costs a few numpy calls, not a Python loop per track.
+        # Vectorised prefilter: a track can only pass if some offset bin could reach
+        # min_aligned_hashes after +/- tolerance smoothing. It runs over all tracks at once, so a
+        # big library full of chance coincidences costs only a few numpy calls.
         offsets_sorted = offsets[group_order]
         span = int(offsets_sorted.max() - offsets_sorted.min()) + 1
         keys = refs_sorted * span + (offsets_sorted - int(offsets_sorted.min()))
@@ -325,12 +325,12 @@ class Matcher:
         """Average votes per non-empty offset bin away from every candidate spike (floor 1).
 
         The best spike and every bin that could itself be an alignment (smoothed
-        votes >= SPIKE_VOTES) are excluded together with a few frames around
-        them: those bins hold the match and its jitter votes (noise shifts peaks
-        by a frame or two).  In a clean library nearly every vote sits on the
-        true offset, and a pattern that occurs several times produces several
-        spikes - a plain mean over all bins would be dominated by the matches
-        themselves and hide them.
+        votes >= SPIKE_VOTES) are excluded, along with a few frames around them,
+        because those bins hold the match and its jitter votes. Noise shifts
+        peaks by a frame or two. In a clean library nearly every vote sits on
+        the true offset, and a pattern that occurs several times produces
+        several spikes. A plain mean over all bins would be dominated by the
+        matches themselves and hide them.
         """
         exclusion = 2 * tolerance + 2
         strong = np.union1d(bins[smoothed >= SPIKE_VOTES], np.array([best_offset], dtype=bins.dtype))
@@ -367,12 +367,12 @@ class Matcher:
 
     @staticmethod
     def _find_occurrences(votes: _Votes, bins, smoothed, background: float, qindex: _QueryIndex, opts: MatchOptions) -> list[Occurrence]:
-        """Strongest spikes first; a spike is dropped only if it re-matches the same query AND track audio.
+        """Strongest spikes first. A spike is dropped only if it re-matches the same query audio and the same track audio.
 
-        Cost is bounded: only bins whose *raw* vote count could possibly pass the
-        thresholds are examined (raw votes bound the distinct-hash count), at most
-        MAX_CANDIDATE_BINS of them, and each candidate reads its votes through a
-        sorted-offset slice instead of scanning every vote of the track.
+        Cost is bounded. Only bins whose raw vote count could pass the thresholds
+        are examined (raw votes bound the distinct-hash count), at most
+        MAX_CANDIDATE_BINS of them. Each candidate reads its votes from a
+        sorted-offset slice without scanning every vote of the track.
         """
         limit = opts.max_occurrences_per_track if opts.mode == "occurrences" else 1
         tol = opts.offset_tolerance_frames
@@ -421,7 +421,7 @@ class Matcher:
 
 
 def _robust_span(times: np.ndarray) -> tuple[int, int]:
-    """Frame span covered by the bulk of the votes (2nd-98th percentile trims stray coincidences)."""
+    """Frame span covered by the bulk of the votes (the 2nd to 98th percentile, which trims stray coincidences)."""
     if times.size <= 20:
         return int(times.min()), int(times.max())
     lo, hi = np.percentile(times, [2, 98])
@@ -438,7 +438,7 @@ def _overlaps(a0: int, a1: int, b0: int, b1: int) -> bool:
 
 
 def _same_region(a: Occurrence, b: Occurrence) -> bool:
-    """Same query audio matched to the same track audio (i.e. offset jitter, not a new occurrence)."""
+    """Same query audio matched to the same track audio, which is offset jitter of an occurrence we already have."""
     return _overlaps(a.query_start_frames, a.query_end_frames, b.query_start_frames, b.query_end_frames) and _overlaps(
         a.track_start_frames, a.track_end_frames, b.track_start_frames, b.track_end_frames
     )

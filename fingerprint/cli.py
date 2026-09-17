@@ -81,11 +81,11 @@ def _fmt_time(seconds: float) -> str:
 
 
 def _install_shutdown_signals() -> None:
-    """Turn SIGTERM (systemd stop, docker stop) into a clean shutdown.
+    """Make SIGTERM (systemd stop, docker stop) shut down cleanly.
 
-    Python's default SIGTERM disposition kills the process outright - no ``finally`` blocks, no ``atexit`` -
-    which would drop fingerprints still buffered in the SQLite write batch. Raising ``SystemExit`` instead
-    unwinds the server loop so :meth:`Runtime.close` can cancel jobs and flush.
+    By default Python dies on SIGTERM without running ``finally`` blocks or ``atexit``, and that would lose
+    whatever is still sitting in the SQLite write buffer. Raising ``SystemExit`` instead unwinds the server
+    loop so :meth:`Runtime.close` can cancel jobs and flush.
     """
 
     def _terminate(signum: int, _frame: Any) -> None:
@@ -93,7 +93,7 @@ def _install_shutdown_signals() -> None:
 
     try:
         signal.signal(signal.SIGTERM, _terminate)
-    except (ValueError, OSError, AttributeError):  # pragma: no cover - not the main thread / no SIGTERM
+    except (ValueError, OSError, AttributeError):  # pragma: no cover, not the main thread or no SIGTERM here
         pass
 
 
@@ -120,9 +120,7 @@ def _serve(app: Any, settings: Settings, args: argparse.Namespace) -> int:
     print(f"  UI:   http://{url_host}:{port}/")
     print(f"  API:  http://{url_host}:{port}/api/v1   (docs: /docs)")
     if host == "0.0.0.0":
-        print(
-            "  Note: listening on all interfaces" + ("" if settings.api_key else " with NO API key - set AUDIOFP_API_KEY if this port is reachable by others")
-        )
+        print("  Listening on all interfaces" + ("" if settings.api_key else " without an API key. Set AUDIOFP_API_KEY if other machines can reach this port"))
     print()
 
     if server == "flask":
@@ -131,7 +129,7 @@ def _serve(app: Any, settings: Settings, args: argparse.Namespace) -> int:
     try:
         from waitress import serve as waitress_serve
     except ImportError:
-        print("waitress is not installed (pip install waitress); falling back to Flask's development server.", file=sys.stderr)
+        print("waitress is not installed (pip install waitress). Falling back to Flask's development server.", file=sys.stderr)
         app.run(host=host, port=port, debug=False, threaded=True, use_reloader=False)
         return EXIT_OK
     waitress_serve(
@@ -290,7 +288,7 @@ def cmd_stats(args: argparse.Namespace) -> int:
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
-    """Check the environment and report what works, what is degraded, what is broken."""
+    """Check the environment and print one line per check: ok, warn or FAIL."""
     from .core.decoder import ffmpeg_info
 
     problems = 0
@@ -341,7 +339,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
         ok("waitress (production server)")
     except ImportError:
-        warn("waitress not installed - `audiofp serve --profile production` will fall back to Flask's dev server")
+        warn("waitress not installed: `audiofp serve --profile production` will fall back to Flask's dev server")
 
     print("\nffmpeg")
     ff = ffmpeg_info()
@@ -359,7 +357,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         ok(f"profile={settings.profile} storage={settings.storage_type} data_dir={os.path.abspath(settings.data_dir)}")
         ok(f"fingerprint signature {settings.fingerprint_signature()} ({', '.join(f'{k}={v}' for k, v in settings.fingerprint_params().items())})")
         if settings.is_production and not settings.api_key:
-            warn("production profile without AUDIOFP_API_KEY - anyone who can reach the port can use the API")
+            warn("production profile without AUDIOFP_API_KEY: anyone who can reach the port can use the API")
         if settings.is_production and settings.allow_directory_indexing and not settings.index_roots:
             warn("directory indexing is effectively disabled in production until AUDIOFP_INDEX_ROOTS is set")
         for label, path in (("data dir", settings.data_dir), ("upload dir", settings.upload_dir_resolved)):
@@ -487,7 +485,7 @@ def cmd_db(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="audiofp", description="AudioFP - self-hosted audio fingerprinting and audio pattern search.")
+    parser = argparse.ArgumentParser(prog="audiofp", description="AudioFP: self-hosted audio fingerprinting and audio pattern search.")
     parser.add_argument("--version", action="version", version=f"audiofp {__version__}")
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--profile", choices=("development", "production", "testing"), help="Configuration profile (default: $AUDIOFP_PROFILE or development)")
@@ -500,7 +498,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", metavar="<command>")
 
     p = sub.add_parser("serve", parents=[common], help="Start the web UI and REST API")
-    p.add_argument("--host", help="Bind address (default from config; 127.0.0.1 in development)")
+    p.add_argument("--host", help="Bind address (default from config, 127.0.0.1 in development)")
     p.add_argument("--port", type=int, help="Port (default 5000)")
     p.add_argument("--server", choices=("auto", "flask", "waitress"), default="auto", help="auto = flask in development, waitress otherwise")
     p.add_argument("--threads", type=int, help="Waitress worker threads")

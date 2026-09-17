@@ -104,8 +104,8 @@ def test_index_file_options_and_dedupe_modes(settings, audio_dir, tmp_path):
 
     path_settings = settings.__class__.load(dotenv=False, env={}, profile="testing", dedupe="path", data_dir=settings.data_dir)
     indexer_path = Indexer(path_settings, store, fingerprinter=indexer.fingerprinter)
-    assert indexer_path.index_file(str(copy)).status == "indexed"  # different path -> new track
-    assert indexer_path.index_file(str(copy)).status == "duplicate"  # same path -> duplicate
+    assert indexer_path.index_file(str(copy)).status == "indexed"  # a different path counts as a new track
+    assert indexer_path.index_file(str(copy)).status == "duplicate"  # the same path again is a duplicate
 
     none_settings = settings.__class__.load(dotenv=False, env={}, profile="testing", dedupe="none", data_dir=settings.data_dir)
     assert Indexer(none_settings, store, fingerprinter=indexer.fingerprinter).index_file(str(copy)).status == "indexed"

@@ -25,9 +25,9 @@ def safe_filename(name: str, fallback: str = "upload") -> str:
     """Return a filesystem-safe version of *name* that keeps its extension.
 
     Unlike :func:`werkzeug.utils.secure_filename`, non-ASCII names are
-    transliterated where possible and never collapse to an empty string, so
-    uploads named in Hindi, Chinese, etc. keep a usable name and - crucially -
-    their extension (which the decoder relies on to pick a backend).
+    transliterated where possible and never collapse to an empty string. So an
+    upload named in Hindi or Chinese keeps a usable name and, more to the point,
+    its extension, which the decoder relies on to pick a backend.
     """
     name = os.path.basename((name or "").replace("\\", "/")).strip()
     stem, ext = os.path.splitext(name)

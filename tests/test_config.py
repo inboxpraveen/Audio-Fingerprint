@@ -106,7 +106,7 @@ def test_log_file_resolution(tmp_path):
     assert none.log_file_resolved == ""
     explicit = Settings.load(dotenv=False, env={f"{ENV_PREFIX}LOG_FILE": "/var/log/audiofp.log"})
     assert explicit.log_file_resolved == "/var/log/audiofp.log"
-    # empty values are ignored for numeric settings instead of failing
+    # an empty value for a numeric setting is ignored and the default stays
     assert Settings.load(dotenv=False, env={f"{ENV_PREFIX}PORT": ""}).port == 5000
 
 

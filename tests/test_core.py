@@ -150,7 +150,7 @@ def test_hashes_edge_cases():
     t3 = np.array([0, 0, 0, 5, 9])
     f3 = np.array([10, 20, 30, 40, 50])
     h, t = generate_hashes(t3, f3, fan_value=2, min_time_delta=1, max_time_delta=200)
-    assert h.size == 3 * 2 + 1  # three anchors at t=0 pair with t=5 and t=9; anchor t=5 pairs with t=9
+    assert h.size == 3 * 2 + 1  # the three anchors at t=0 pair with t=5 and t=9, and the anchor at t=5 pairs with t=9
     assert all(decode_hash(x)[2] >= 1 for x in h)
     with pytest.raises(ValueError):
         generate_hashes(np.array([1, 2]), np.array([1]), 10)
@@ -212,7 +212,7 @@ class _FakeProc:
         return self.returncode
 
     def wait(self, timeout=None):
-        # Like a real process: a code set by kill() stays; otherwise the process exits with its own code.
+        # like a real process, a code set by kill() sticks, otherwise it exits with its own code
         if self.returncode is None:
             self.returncode = self._rc
         return self.returncode
@@ -397,7 +397,7 @@ def test_prefilter_skips_hopeless_tracks(library):
 
 
 def test_occurrences_on_highly_repetitive_audio_is_bounded():
-    """A looped pattern creates thousands of strong offset bins; scoring must stay fast and capped."""
+    """A looped pattern creates thousands of strong offset bins. Scoring has to stay fast and capped."""
     import time
 
     s = Settings.load(dotenv=False, env={})

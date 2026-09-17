@@ -2,25 +2,25 @@
 
 ## Reporting a vulnerability
 
-Please do **not** open a public issue for security problems. Email the maintainer (see the GitHub profile of the repository owner) with a description, reproduction steps and the affected version. You will get an acknowledgement within a few days; fixes are released as patch versions and credited in the changelog unless you prefer otherwise.
+Please don't open a public issue for security problems. Email the maintainer (the address is on the GitHub profile of the repository owner) with a description, steps to reproduce and the affected version. You'll get an acknowledgement within a few days. Fixes go out as patch releases and are credited in the changelog unless you'd rather not be named.
 
-## Deployment model and what AudioFP does (and does not) protect
+## What AudioFP protects and what it leaves to you
 
-AudioFP is designed to run **inside a trusted network** or behind a reverse proxy that handles TLS, authentication and rate limiting. Out of the box:
+AudioFP is meant to run inside a trusted network, or behind a reverse proxy that takes care of TLS, authentication and rate limiting. The defaults look like this:
 
-- All endpoints are unauthenticated unless `AUDIOFP_API_KEY` is set. Set it for anything reachable by other people; the key is compared in constant time.
-- `POST /api/v1/tracks/index-directory` makes the server read files from its own filesystem. In the `production` profile it only works inside the folders listed in `AUDIOFP_INDEX_ROOTS`; set `AUDIOFP_ALLOW_DIRECTORY_INDEXING=false` to disable it entirely. In `development` any path is allowed — do not expose a development server.
+- Every endpoint is open unless `AUDIOFP_API_KEY` is set. Set it for anything other people can reach. The key is compared in constant time.
+- `POST /api/v1/tracks/index-directory` makes the server read files from its own filesystem. In the `production` profile it only works inside the folders listed in `AUDIOFP_INDEX_ROOTS`, and `AUDIOFP_ALLOW_DIRECTORY_INDEXING=false` switches it off completely. In `development` any path is allowed, so never expose a development server.
 - Audio streaming (`/tracks/<id>/audio`) only serves files that were indexed, never arbitrary paths. Deleting files through the API is limited to the upload folder.
-- Uploaded file names are sanitised and stored under random prefixes; uploads are size-limited (`AUDIOFP_MAX_UPLOAD_MB`).
-- Error responses never include stack traces or server paths; a `request_id` links them to the server log.
-- The UI stores the API key in the browser's `localStorage`. Use HTTPS (via your proxy) so it is not sent in clear text.
-- ffmpeg, when installed, decodes untrusted input. Keep it updated; run the container image (non-root user) if you process files from unknown sources.
+- Uploaded file names are sanitised and stored under random prefixes, and uploads are size-limited by `AUDIOFP_MAX_UPLOAD_MB`.
+- Error responses never include stack traces or server paths. A `request_id` links them to the server log.
+- The UI keeps the API key in the browser's `localStorage`. Put HTTPS in front (through your proxy) so the key isn't sent in clear text.
+- When ffmpeg is installed it decodes untrusted input. Keep it updated, and if you process files from unknown sources use the container image, which runs as a non-root user.
 
-Not provided: per-user accounts, rate limiting, audit trails, encryption at rest. Put AudioFP behind your gateway of choice for those.
+There are no per-user accounts, no rate limiting, no audit trail and no encryption at rest. Put AudioFP behind whatever gateway you already use for those.
 
 ## Supported versions
 
 | Version | Supported |
 |---|---|
 | 2.x | yes |
-| 1.x | no — upgrade (fingerprints must be rebuilt) |
+| 1.x | no. Upgrade; fingerprints have to be rebuilt |

@@ -1,33 +1,33 @@
-"""SQLite storage backend - the default for single-node deployments.
+"""SQLite storage backend, the default for single-node deployments.
 
 Design notes
 ------------
 * One connection per thread (``threading.local``; connections of threads that
-  have exited are closed lazily), WAL journal mode, and a process-wide write
-  lock so concurrent indexing workers queue instead of fighting over
-  ``SQLITE_BUSY``.
+  have exited are closed lazily) and WAL journal mode. A process-wide write
+  lock makes concurrent indexing workers queue and keeps them from fighting
+  over ``SQLITE_BUSY``.
 * ``fingerprints`` is a ``WITHOUT ROWID`` table whose primary key is
   ``(hash_value, track_ref, time_offset)``: a single clustered B-tree that is
-  both the storage and the lookup index (no redundant secondary index, half the
-  disk of the v1 layout).
-* **Batched writes.** Inserting one track's hashes touches a random leaf page
+  both the storage and the lookup index. There is no secondary index to keep,
+  and it takes half the disk of the v1 layout.
+* Writes are batched. Inserting one track's hashes touches a random leaf page
   per hash, so on a large library every track would rewrite hundreds of MB of
-  B-tree.  Fingerprints are therefore buffered in memory (``write_batch_rows``)
-  and written in one *sorted* transaction, which visits each leaf once per
-  batch.  The buffer is searched too, so a track is matchable the moment it is
-  added; ``flush()`` runs when the buffer fills, at the end of an indexing run
-  and on ``close()``.  A track row carries ``flushed=0`` until its hashes are
-  on disk; after an unclean shutdown such tracks are removed at start-up (and
-  logged) so they are simply re-indexed next time - the library never contains
-  a track that cannot be matched.
-* Batch lookups load the query hashes into a temporary table and join - one
-  statement regardless of query size.  Hashes that occur more than
+  B-tree. Fingerprints are therefore buffered in memory (``write_batch_rows``)
+  and written in one sorted transaction, which visits each leaf once per
+  batch. The buffer is searched too, so a track is matchable the moment it is
+  added. ``flush()`` runs when the buffer fills, at the end of an indexing run
+  and on ``close()``. A track row carries ``flushed=0`` until its hashes are
+  on disk. After an unclean shutdown such tracks are removed at start-up and
+  logged, so they get re-indexed next time. The library never holds a track
+  that can't be matched.
+* Batch lookups load the query hashes into a temporary table and join, which
+  is one statement whatever the query size. Hashes that occur more than
   ``max_rows_per_hash`` times in the library ("stop words": hold-music loops,
-  test tones) are skipped: they carry almost no information but would
+  test tones) are skipped. They carry almost no information but would
   multiply the vote count.
-* ``get_stats`` only touches the small ``tracks`` table; it never scans the
+* ``get_stats`` only touches the small ``tracks`` table and never scans the
   fingerprint table, so the UI can poll it freely.
-* The schema is versioned with ``PRAGMA user_version``; a v1 database (from
+* The schema is versioned with ``PRAGMA user_version``. A v1 database (from
   AudioFP 1.x) is detected and rejected with a clear message because the hash
   layout changed.
 """
@@ -136,7 +136,7 @@ class SQLiteStore(StorageBackend):
         self.track_index = bool(track_index)
         self._local = threading.local()
         self._write_lock = threading.RLock()
-        # (owning thread, connection) - connections of threads that have exited are closed lazily.
+        # (owning thread, connection) pairs; connections of threads that have exited are closed lazily
         self._connections: list[tuple[threading.Thread, sqlite3.Connection]] = []
         self._connections_lock = threading.Lock()
         # Write buffer: (track ref, hashes, times) per track not yet on disk.
@@ -174,7 +174,7 @@ class SQLiteStore(StorageBackend):
             else:
                 try:
                     conn.close()
-                except sqlite3.Error:  # pragma: no cover - defensive
+                except sqlite3.Error:  # pragma: no cover (defensive)
                     pass
         self._connections = alive
 
@@ -188,14 +188,14 @@ class SQLiteStore(StorageBackend):
     def close(self) -> None:
         try:
             self.flush()
-        except StorageError as exc:  # pragma: no cover - disk problems at shutdown
+        except StorageError as exc:  # pragma: no cover (disk problems at shutdown)
             logger.error("Could not flush pending fingerprints on close: %s", exc)
         with self._connections_lock:
             conns, self._connections = self._connections, []
         for _thread, conn in conns:
             try:
                 conn.close()
-            except sqlite3.Error:  # pragma: no cover - defensive
+            except sqlite3.Error:  # pragma: no cover (defensive)
                 pass
         self._local = threading.local()
 
@@ -246,7 +246,7 @@ class SQLiteStore(StorageBackend):
         except sqlite3.Error as exc:
             try:
                 conn.execute("ROLLBACK")
-            except sqlite3.Error:  # pragma: no cover - already rolled back
+            except sqlite3.Error:  # pragma: no cover (already rolled back)
                 pass
             raise StorageError(f"Schema migration failed: {exc}") from exc
         logger.info("SQLite schema initialised (version %d) at %s", SCHEMA_VERSION, self.db_path)
@@ -502,7 +502,7 @@ class SQLiteStore(StorageBackend):
                 self._drop_pending(ref)
             try:
                 conn.execute("BEGIN IMMEDIATE")
-                # One scan for the whole batch instead of one per track.
+                # delete in batches so the fingerprint table isn't scanned once per track
                 for i in range(0, len(refs), 500):
                     chunk = refs[i : i + 500]
                     placeholders = ",".join("?" * len(chunk))
@@ -606,7 +606,7 @@ class SQLiteStore(StorageBackend):
         }
 
     def unique_hash_count(self) -> int:
-        """Expensive (full index scan) - only used by ``audiofp stats --full``."""
+        """Expensive (full index scan). Only ``audiofp stats --full`` uses it."""
         self.flush()
         return int(self._conn().execute("SELECT COUNT(DISTINCT hash_value) FROM fingerprints").fetchone()[0])
 

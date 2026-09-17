@@ -1,27 +1,26 @@
-# AudioFP — self-hosted audio search & pattern detection
+# AudioFP
 
 [![CI](https://github.com/inboxpraveen/Audio-Fingerprint/actions/workflows/ci.yml/badge.svg)](https://github.com/inboxpraveen/Audio-Fingerprint/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-> Drop in a 3-second clip and find out **what** it is and **where** it comes from.
-> Index a jingle, a compliance disclaimer or a piece of hold music and find **every place it occurs** across thousands of recordings — with timestamps.
+AudioFP is a self-hosted audio fingerprinting service. Give it a few seconds of audio and it tells you which track the clip came from and where in that track it sits. Index a jingle, a compliance disclaimer or a piece of hold music and it finds every place that audio turns up across your recordings, with timestamps.
 
 <p align="center">
   <img src="assets/Header.png" alt="AudioFP" width="800" />
 </p>
 
-AudioFP is a production-ready, self-hosted audio fingerprinting service. It implements the landmark ("Shazam-style") algorithm on top of numpy/scipy, stores fingerprints in SQLite or PostgreSQL, and ships with a REST API, a CLI and a web UI. No cloud, no API keys, no transcription — it matches sound, not words, so it works on music, jingles, IVR prompts, hold music, ads and any other recorded audio.
+It works on the sound itself. There is no speech recognition involved and nothing leaves your machine, so it is just as happy with music as with IVR prompts, hold music, ads or anything else that was recorded once and played many times. The engine is the landmark ("Shazam") algorithm on numpy and scipy, with fingerprints stored in SQLite or PostgreSQL. You get a REST API, a command line and a small web UI.
 
-## Highlights
+## What it does
 
-- **Identify clips** — 3-second snippets, noisy phone recordings, video files (audio is extracted automatically).
-- **Find all occurrences** — the search mode built for QA: index short *patterns*, search with long *recordings* (or vice versa) and get every occurrence with start/end times, in the track *and* in the query.
-- **Honest scores** — every match carries `confidence`, `aligned_hashes` and `peak_ratio`, plus a *strong / likely / weak* label; thresholds are configurable per request, per server, or in the UI. Chance matches are rejected instead of being reported as "4 matches found".
-- **Flat memory** — audio is decoded and fingerprinted in a stream. An hour-long recording costs a few tens of MB, not gigabytes.
-- **Enterprise hygiene** — typed configuration from environment variables, API-key auth, folder allow-lists, uniform JSON errors with request ids, structured (JSON) logs, background jobs with progress/ETA/cancel/history, duplicate detection, a fingerprint-compatibility stamp that refuses to silently mismatch a database, OpenAPI spec, Docker image, CI on three OSes.
-- **Formats** — WAV, FLAC, OGG/Opus, MP3, AIFF natively (libsndfile); M4A/AAC/WMA and every common video container with ffmpeg.
-- **Small footprint** — pure Python + numpy/scipy/soundfile; no librosa/numba, no compiler needed to install.
+- Identifies clips as short as 3 seconds, including noisy phone recordings and video files (the audio is extracted for you).
+- Finds every occurrence of a pattern. Index short patterns, search with a long recording, or the other way round, and you get start and end times in both the track and the query. This mode was built for QA on call recordings.
+- Tells you how good a match is. Every match carries `confidence`, `aligned_hashes` and `peak_ratio`, plus a strong / likely / weak label. Thresholds can be set per request, per server or in the UI, and anything under them is dropped rather than reported as a match.
+- Streams audio through the pipeline, so an hour-long recording takes a few tens of MB of memory.
+- Covers the operational side: typed configuration from environment variables, API key auth, a folder allow-list, JSON errors with request ids, JSON logs, background jobs with progress and cancellation, duplicate detection, an OpenAPI spec, a Docker image and CI on Linux, Windows and macOS.
+- Reads WAV, FLAC, OGG/Opus, MP3 and AIFF directly through libsndfile. With ffmpeg installed it also reads M4A, AAC, WMA and the usual video containers.
+- Installs without a compiler. It is pure Python on numpy, scipy and soundfile; no librosa, no numba.
 
 <p align="center">
   <img src="assets/Audio-Search-Light.png" alt="Search results with match timelines" width="800" />
@@ -39,27 +38,27 @@ audiofp doctor                                     # checks Python, libsndfile, 
 audiofp serve                                      # UI + API at http://localhost:5000
 ```
 
-Optional but recommended: install [ffmpeg](https://ffmpeg.org) (`winget install Gyan.FFmpeg`, `brew install ffmpeg`, `apt install ffmpeg`) to decode video files and M4A/AAC/WMA. Everything else works without it.
+ffmpeg is optional but worth having (`winget install Gyan.FFmpeg`, `brew install ffmpeg`, `apt install ffmpeg`). Without it you can't decode video files or M4A/AAC/WMA. Everything else works.
 
-Index a folder and search from the command line:
+Index a folder and search from the terminal:
 
 ```bash
 audiofp index ./my-recordings --tags "campaign-a"   # progress bar, duplicates skipped, errors listed
-audiofp search clip.wav                              # what is this?
-audiofp search call-2026-09-17.wav --mode occurrences   # where do known patterns occur inside this call?
+audiofp search clip.wav                              # which track is this?
+audiofp search call-2026-09-17.wav --mode occurrences   # which known patterns occur in this call, and where?
 audiofp stats
 ```
 
-Or use the web UI: drop a file (or record from the microphone), pick *Identify clip* or *Find all occurrences*, and play any match from the exact position it was found.
+Or open the web UI, drop a file in (or record from the microphone), pick a search mode and play any match from the exact spot it was found.
 
 ## The two search modes
 
-| Mode | Question it answers | Typical use |
+| Mode | What you get | Typical use |
 |---|---|---|
-| `identify` | "What is this clip and where does it sit in the original?" | music recognition, deduplication, finding the source of a snippet |
-| `occurrences` | "Everywhere the query and a track share audio" — every occurrence, with spans | QA on call recordings: was the compliance disclaimer played? how often did the hold music loop? which ad ran when? |
+| `identify` | The best match per track: which track the clip is from and where it sits in it | music recognition, deduplication, tracing where a snippet came from |
+| `occurrences` | Every place the query and a track share audio, with start and end times | QA on call recordings: did the disclaimer play, how many times did the hold music loop, which ad ran when |
 
-Offsets are signed. A positive offset means the query clip starts *inside* the track (`track_offset_sec`); a negative one means the track's content was found *inside* the query at `query_offset_sec` — index short patterns, then search with long recordings.
+Offsets are signed. A positive offset means the query clip starts somewhere inside the track (`track_offset_sec`). A negative one means the track's content was found inside the query, at `query_offset_sec`. The second case is the usual one for QA: index short patterns, then search with whole recordings.
 
 ```bash
 curl -F "audio=@call.wav" -F mode=occurrences http://localhost:5000/api/v1/search
@@ -79,24 +78,24 @@ curl -F "audio=@call.wav" -F mode=occurrences http://localhost:5000/api/v1/searc
 }
 ```
 
-## How it works (in one paragraph)
+## How it works
 
-Audio is decoded in chunks to 11.025 kHz mono, turned into a spectrogram, and reduced to its most prominent spectral peaks (a "constellation"). Pairs of nearby peaks become 36-bit hashes stored in an inverted index together with the frame they occur at. A query goes through the same pipeline; every shared hash votes for a time offset between query and track, and real matches produce a sharp spike in that vote histogram while coincidences do not. The spike's height (distinct aligned hashes), its sharpness relative to the histogram background (`peak_ratio`) and the fraction of the matched region it explains (`confidence`) are all reported. Details, parameters and the maths: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Audio is decoded in chunks to 11.025 kHz mono and turned into a spectrogram, which is then reduced to its most prominent peaks. Pairs of nearby peaks become 36-bit hashes, stored in an inverted index together with the frame they occur at. A query goes through the same steps. Every hash the query shares with a track votes for a time offset between the two, and a real match shows up as a sharp spike in that vote histogram, while coincidences only add noise. The height of the spike (distinct aligned hashes), how sharp it is compared with the background (`peak_ratio`) and how much of the matched region it explains (`confidence`) are all reported. The details, including the parameters and the maths, are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Documentation
 
-| Document | What's in it |
+| Document | Covers |
 |---|---|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | components, the algorithm, storage layout, jobs |
 | [docs/API.md](docs/API.md) | every endpoint with examples (interactive version at `/docs`) |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | all `AUDIOFP_*` settings, profiles, derived paths |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | production checklist, Docker, PostgreSQL, nginx, systemd, upgrading from 1.x |
-| [docs/TUNING.md](docs/TUNING.md) | scores, thresholds, fingerprint parameters, calibration recipe |
-| [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | memory/throughput characteristics and sizing |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | symptom → cause → fix, error codes |
-| [docs/EXTENDING.md](docs/EXTENDING.md) | using AudioFP as a library, QA recipes, adding backends/endpoints/jobs |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | where this is going (keyword search on audio, agent evaluation) |
-| [CHANGELOG.md](CHANGELOG.md) · [CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md) | |
+| [docs/TUNING.md](docs/TUNING.md) | scores, thresholds, fingerprint parameters, how to calibrate |
+| [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | memory and throughput, sizing |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | symptoms, causes and fixes, error codes |
+| [docs/EXTENDING.md](docs/EXTENDING.md) | using AudioFP as a library, QA recipes, adding backends, endpoints and jobs |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | what comes next (keyword search on audio, agent evaluation) |
+| [CHANGELOG.md](CHANGELOG.md), [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) | |
 
 ## CLI
 
@@ -111,11 +110,11 @@ audiofp config     [--describe]
 audiofp db         check | reset --yes | vacuum
 ```
 
-All commands accept `--profile`, `--data-dir`, `--storage`, `--sqlite-path` and `--log-level`. `python -m fingerprint ...` and the legacy `python run.py` work too.
+All commands accept `--profile`, `--data-dir`, `--storage`, `--sqlite-path` and `--log-level`. `python -m fingerprint ...` works too, and so does the old `python run.py`.
 
 ## REST API
 
-Everything the UI does is available under `/api/v1` — search, upload, folder indexing, jobs, track metadata (title, artist, tags, custom fields), audio streaming with Range support, stats, runtime settings. Errors are uniform JSON (`error`, `code`, `status`, `details`, `request_id`); the request id is also in the `X-Request-ID` header and the server log line. Set `AUDIOFP_API_KEY` to require a key (`X-API-Key` or `Authorization: Bearer`).
+The UI only talks to the public API, so anything you can do there you can do with curl under `/api/v1`: search, upload, folder indexing, jobs, track metadata (title, artist, tags, custom fields), audio streaming with Range support, stats and runtime settings. Errors are JSON with `error`, `code`, `status`, `details` and `request_id`. The same id is in the `X-Request-ID` header and in the server log line. Set `AUDIOFP_API_KEY` to require a key, sent as `X-API-Key` or `Authorization: Bearer`.
 
 ```bash
 curl -F "audio=@track.mp3" -F "tags=ads,q3" http://localhost:5000/api/v1/tracks     # 202 + job
@@ -123,35 +122,35 @@ curl http://localhost:5000/api/v1/jobs/<job_id>
 curl "http://localhost:5000/api/v1/tracks?q=disclaimer&sort=duration&order=desc"
 ```
 
-Full reference: [docs/API.md](docs/API.md) or `/docs` on a running server.
+The full reference is [docs/API.md](docs/API.md), or open `/docs` on a running server.
 
 ## Configuration
 
-Everything is an environment variable with an `AUDIOFP_` prefix (or a `.env` file — see [.env.example](.env.example)):
+Everything is an environment variable with an `AUDIOFP_` prefix, or a line in a `.env` file (see [.env.example](.env.example)):
 
 ```bash
 AUDIOFP_PROFILE=production AUDIOFP_API_KEY=s3cret AUDIOFP_INDEX_ROOTS=/srv/calls audiofp serve
 ```
 
-The fingerprint parameters are stamped into the database; changing them refuses to open an existing database rather than silently degrading matches (`audiofp db reset` re-stamps after you re-index). Reference: [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
+The fingerprint parameters are stamped into the database. If you change them, AudioFP refuses to open the old database, because the stored fingerprints would no longer line up with freshly computed ones. `audiofp db reset` wipes it and stamps the new parameters so you can re-index. The full list is in [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
 
 ## Deployment
 
 ```bash
 docker build -t audiofp -f docker/Dockerfile .
 docker run -p 5000:5000 -v audiofp-data:/data -e AUDIOFP_API_KEY=s3cret audiofp
-# or: AUDIOFP_API_KEY=s3cret docker compose -f docker/docker-compose.yml up --build   (add --profile postgres for PostgreSQL;
-#     the key is required, and the port is published on 127.0.0.1 unless AUDIOFP_BIND=0.0.0.0)
 ```
 
-The image bundles ffmpeg and runs waitress as a non-root user with a health check. Production checklist, reverse proxy, systemd, PostgreSQL and upgrade notes: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+Or with compose: `AUDIOFP_API_KEY=s3cret docker compose -f docker/docker-compose.yml up --build`. Add `--profile postgres` to run PostgreSQL next to it. The key is required, and the port is only published on 127.0.0.1 unless you set `AUDIOFP_BIND=0.0.0.0`.
+
+The image bundles ffmpeg, runs waitress as a non-root user and has a health check. The production checklist, reverse proxy and systemd examples, PostgreSQL setup and the notes on upgrading from 1.x are in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Project layout
 
 ```
 fingerprint/
   config.py        typed settings from env (+ fingerprint signature)
-  formats.py       supported formats (single source of truth)
+  formats.py       supported formats (the only place extensions are listed)
   core/            decoder (streaming), fingerprinter (chunked STFT + peaks), hash_generator, matcher
   storage/         StorageBackend contract; memory, sqlite, postgres backends
   indexing/        folder scanner, Indexer (dedupe, error isolation, cancellation), progress
@@ -167,21 +166,21 @@ docs/              guides; docker/ image + compose; .github/ CI + templates
 
 ```bash
 pip install -e ".[dev]"
-pytest -q                 # ~80 tests in a few seconds
-pytest -q -m slow         # 30-minute-file memory/scale test
+pytest -q                 # the whole suite runs in about ten seconds
+pytest -q -m slow         # 30-minute-file memory and scale test
 ruff check . && ruff format --check .
 ```
 
-Tests generate all audio synthetically, so the repository stays small and the suite runs on Windows, macOS and Linux (see `.github/workflows/ci.yml`; the PostgreSQL contract tests run in CI against a service container, and locally when `AUDIOFP_TEST_POSTGRES_DSN` is set).
+All test audio is generated on the fly, so there are no binary fixtures in the repository and the suite behaves the same on Windows, macOS and Linux. CI runs it on all three (`.github/workflows/ci.yml`) and also runs the PostgreSQL contract tests against a service container. Locally those run when `AUDIOFP_TEST_POSTGRES_DSN` is set.
 
-## Where this is going
+## Roadmap
 
-Today AudioFP searches *sound*. The roadmap adds *keyword and phrase search on audio* (speech recognition alongside the fingerprint index) and evaluation workflows for contact-centre QA — scoring agents on scripted phrases, detecting silence and hold patterns, flagging calls — on the same tracks, tags, jobs and UI. See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/EXTENDING.md](docs/EXTENDING.md) for the plug-in points that already exist.
+Right now AudioFP searches sound. The next step is keyword and phrase search on audio, with speech recognition running next to the fingerprint index, and on top of that the QA workflows contact centres need: scoring agents against scripted phrases, spotting silence and hold patterns, flagging calls. All of it on the same tracks, tags, jobs and UI. [docs/ROADMAP.md](docs/ROADMAP.md) has the plan and [docs/EXTENDING.md](docs/EXTENDING.md) describes the extension points that exist today.
 
-## Contributing & security
+## Contributing and security
 
-Bug reports and pull requests are welcome — read [CONTRIBUTING.md](CONTRIBUTING.md) first. Please report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+Bug reports and pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first. For security problems follow [SECURITY.md](SECURITY.md) and don't open a public issue.
 
-## License
+## Licence
 
-MIT — see [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE).

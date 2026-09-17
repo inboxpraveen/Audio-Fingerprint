@@ -26,7 +26,7 @@ def info():
 
 @api_bp.route("/stats", methods=["GET"])
 def stats():
-    """Library statistics (cheap - safe to poll)."""
+    """Library statistics. Cheap, so polling it is fine."""
     rt = runtime()
     data = rt.storage.get_stats()
     data["total_songs"] = data.get("total_tracks", 0)  # deprecated alias

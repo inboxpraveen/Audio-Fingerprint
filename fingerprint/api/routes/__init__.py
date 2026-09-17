@@ -1,7 +1,8 @@
 """REST API blueprint (``/api/v1``).
 
-Each module registers its endpoints on :data:`api_bp`.  Route handlers are
-thin: parse -> call :class:`~fingerprint.api.runtime.Runtime` -> format.
+Each module registers its endpoints on :data:`api_bp`. Route handlers are
+thin: they parse the request, call :class:`~fingerprint.api.runtime.Runtime`
+and format the result.
 """
 
 from __future__ import annotations

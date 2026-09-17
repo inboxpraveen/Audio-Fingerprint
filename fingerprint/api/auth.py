@@ -1,20 +1,20 @@
-"""Optional API-key authentication.
+"""Optional API key authentication.
 
-When ``AUDIOFP_API_KEY`` is set, every request under ``/api/v1`` except the
-health probe and the OpenAPI document must present the key, either as
-``X-API-Key: <key>`` or as ``Authorization: Bearer <key>``.  Comparison is
+When ``AUDIOFP_API_KEY`` is set, every request under ``/api/v1`` has to carry
+the key, either as ``X-API-Key: <key>`` or as ``Authorization: Bearer <key>``.
+The health probe and the OpenAPI document stay public. The comparison is
 constant-time.
 
-Browsers cannot attach headers to ``<audio src=...>``, so the audio stream
-endpoints additionally accept a **short-lived, track-scoped stream token**
-(``?token=``) minted by ``GET /api/v1/tracks/<id>/stream-token``.  Tokens are
-HMAC-signed with the API key, expire after :data:`STREAM_TOKEN_TTL` seconds and
-only grant access to that one track, so a token that leaks into a proxy log or
-browser history is worthless soon after and never reveals the key itself.
+A browser can't put headers on ``<audio src=...>``, so the audio stream
+endpoints also accept a stream token in ``?token=``. The token comes from
+``GET /api/v1/tracks/<id>/stream-token``, is HMAC-signed with the API key,
+expires after :data:`STREAM_TOKEN_TTL` seconds and only works for that one
+track. If it ends up in a proxy log or browser history it is useless soon
+after and never exposes the key itself.
 
-The bundled UI asks for the key once and stores it in the browser's local
-storage.  For anything beyond a single shared secret (per-user keys, SSO,
-rate limiting) put AudioFP behind a reverse proxy or API gateway - see
+The bundled UI asks for the key once and keeps it in the browser's local
+storage. If you need more than a single shared secret (per-user keys, SSO,
+rate limiting), put AudioFP behind a reverse proxy or API gateway. See
 ``docs/DEPLOYMENT.md``.
 """
 

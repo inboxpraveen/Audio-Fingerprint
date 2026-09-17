@@ -13,7 +13,7 @@ from . import api_bp, runtime
 
 @api_bp.route("/jobs", methods=["GET"])
 def list_jobs():
-    """List jobs, newest first. ``?status=active`` = pending+running; comma-separated statuses allowed."""
+    """List jobs, newest first. ``?status=active`` means pending and running. Several statuses can be given comma-separated."""
     rt = runtime()
     status = (request.args.get("status") or "").strip() or None
     if status and status != "active":

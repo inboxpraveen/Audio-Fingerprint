@@ -1,4 +1,4 @@
-"""POST /api/v1/search - identify a clip or find every occurrence of a pattern."""
+"""POST /api/v1/search: identify a clip or find every occurrence of a pattern."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ def search():
         audio               the clip (any supported audio/video format)
         mode                identify (default) | occurrences
         top_k               max tracks to return
-        min_confidence      0-1
+        min_confidence      0 to 1
         min_aligned_hashes  integer
         min_peak_ratio      float
         max_occurrences     per track, occurrences mode only

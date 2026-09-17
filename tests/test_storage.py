@@ -1,4 +1,4 @@
-"""Contract tests every storage backend must pass (memory, SQLite; PostgreSQL when a DSN is set)."""
+"""Contract tests every storage backend must pass: memory and SQLite, plus PostgreSQL when a DSN is set."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ def store(request, tmp_path):
         s = MemoryStore()
     elif request.param == "sqlite":
         s = SQLiteStore(str(tmp_path / "t.db"))
-    else:  # pragma: no cover - needs a live server
+    else:  # pragma: no cover (needs a live server)
         from fingerprint.storage.postgres_store import PostgresStore
 
         s = PostgresStore(POSTGRES_DSN)
@@ -153,14 +153,14 @@ def test_meta_and_fingerprint_compat(store):
     assert store.get_meta(META_SIGNATURE) is None
     store.initialize("sig-a", {"fan_value": 10}, "strict")
     assert store.get_meta(META_SIGNATURE) == "sig-a"
-    store.initialize("sig-a", {"fan_value": 10}, "strict")  # same -> fine
+    store.initialize("sig-a", {"fan_value": 10}, "strict")  # the same signature again is fine
     store.add_track(_track("X"), *_hashes(50, 5))
     with pytest.raises(FingerprintCompatibilityError) as exc:
         store.initialize("sig-b", {"fan_value": 11}, "strict")
     assert exc.value.details["stored_signature"] == "sig-a"
     store.initialize("sig-b", {"fan_value": 11}, "warn")  # only logs
     store.initialize("sig-b", {"fan_value": 11}, "ignore")
-    assert store.get_meta(META_SIGNATURE) == "sig-a"  # never silently re-stamped
+    assert store.get_meta(META_SIGNATURE) == "sig-a"  # initialize() never re-stamps by itself, that takes an explicit db reset
 
 
 def test_helpers():
@@ -274,7 +274,7 @@ def test_sqlite_common_hash_cap(tmp_path):
     h, _r, _t = store.query_hashes(np.array([777, 1000, 1001], dtype=np.int64), max_rows_per_hash=100, stats=stats)
     assert stats["skipped_hashes"] == 1 and 777 not in h.tolist() and set(h.tolist()) == {1000, 1001}
     h, _r, _t = store.query_hashes(np.array([777], dtype=np.int64))
-    assert h.size == 150  # no cap -> everything
+    assert h.size == 150  # with no cap every row comes back
     store.close()
 
 
@@ -286,7 +286,7 @@ def test_sqlite_concurrent_writers(tmp_path):
         try:
             for j in range(5):
                 store.add_track(_track(f"w{i}-{j}"), *_hashes(1000 * i + j, 300))
-        except Exception as exc:  # pragma: no cover - failure path
+        except Exception as exc:  # pragma: no cover (failure path)
             errors.append(exc)
 
     threads = [threading.Thread(target=worker, args=(i,)) for i in range(6)]

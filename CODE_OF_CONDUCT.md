@@ -1,11 +1,11 @@
 # Code of Conduct
 
-Everyone participating in this project — in issues, pull requests, discussions and reviews — is expected to be respectful, patient and constructive.
+Everyone taking part in this project, whether in issues, pull requests, discussions or reviews, is expected to be respectful, patient and constructive.
 
-- Assume good intent; disagree with ideas, not people.
+- Assume good intent. Disagree with ideas, not with people.
 - No harassment, discrimination, personal attacks or unwelcome sexual attention.
-- Keep discussions on topic and welcoming to newcomers.
+- Keep discussions on topic and easy for newcomers to join.
 
-Maintainers may edit, remove or reject contributions and comments that do not follow these expectations, and may temporarily or permanently ban anyone for behaviour they deem inappropriate. To report a problem, contact the repository owner privately.
+Maintainers may edit, remove or reject contributions and comments that don't meet these expectations, and may ban anyone, temporarily or for good, for behaviour they consider inappropriate. To report a problem, contact the repository owner privately.
 
-This document is adapted in spirit from the [Contributor Covenant](https://www.contributor-covenant.org/), version 2.1.
+This document follows the spirit of the [Contributor Covenant](https://www.contributor-covenant.org/), version 2.1.

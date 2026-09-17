@@ -1,7 +1,7 @@
-"""OpenAPI 3.0 description of the REST API (served at ``/api/v1/openapi.json``).
+"""OpenAPI 3.0 description of the REST API, served at ``/api/v1/openapi.json``.
 
-Hand-maintained so it can carry real explanations; ``tests/test_api.py`` checks
-that every registered route is documented here and vice versa.
+Written by hand so the descriptions can say something useful. ``tests/test_api.py``
+checks that every registered route appears here and vice versa.
 """
 
 from __future__ import annotations
@@ -31,11 +31,11 @@ def build_openapi(settings: Settings) -> dict[str, Any]:
                 "tags": ["Search"],
                 "summary": "Identify a clip, or find every occurrence of a pattern",
                 "description": (
-                    "Upload an audio/video clip. In `identify` mode the best alignment per track is returned "
-                    '("what is this?"). In `occurrences` mode every alignment above the thresholds is returned per '
-                    "track, with the matched time spans - use it to find all places a jingle, disclaimer or hold-music "
+                    "Upload an audio or video clip. In `identify` mode you get the best alignment per track: that tells "
+                    "you which track the clip came from. In `occurrences` mode you get every alignment above the thresholds "
+                    "per track, with the matched time spans, so you can find each place a jingle, disclaimer or hold-music "
                     "pattern appears. Offsets are signed: a negative `offset_sec` means the indexed track starts after "
-                    "the query does, i.e. the track's content occurs inside the query at `query_offset_sec`."
+                    "the query does, so the track's content sits inside the query at `query_offset_sec`."
                 ),
                 "requestBody": {
                     "required": True,
@@ -106,7 +106,7 @@ def build_openapi(settings: Settings) -> dict[str, Any]:
                     },
                 },
                 "responses": {
-                    "202": _json("JobAccepted", "Accepted - poll the job"),
+                    "202": _json("JobAccepted", "Accepted, poll the job for progress"),
                     "400": _err("Bad input"),
                     "413": _err("Too large"),
                     "415": _err("Unsupported format"),
@@ -214,7 +214,7 @@ def build_openapi(settings: Settings) -> dict[str, Any]:
                         "name": "token",
                         "in": "query",
                         "schema": {"type": "string"},
-                        "description": "Short-lived stream token from GET /tracks/{track_id}/stream-token - how <audio src> elements authenticate when an API key is required.",
+                        "description": "Short-lived stream token from GET /tracks/{track_id}/stream-token. This is how an <audio src> element authenticates when the server requires an API key.",
                     },
                 ],
                 "responses": {"200": {"description": "Audio bytes"}, "206": {"description": "Partial content"}, "404": _err("Track or file not found")},
@@ -359,7 +359,7 @@ def build_openapi(settings: Settings) -> dict[str, Any]:
     occurrence_schema = {
         "type": "object",
         "properties": {
-            "offset_sec": {"type": "number", "description": "track time - query time (signed)"},
+            "offset_sec": {"type": "number", "description": "track time minus query time (signed)"},
             "track_offset_sec": {"type": "number", "description": "Where the aligned query audio starts inside the track (>= 0)"},
             "query_offset_sec": {"type": "number", "description": "Where the track's content starts inside the query (>= 0)"},
             "query_start_sec": {"type": "number"},
@@ -411,7 +411,7 @@ def build_openapi(settings: Settings) -> dict[str, Any]:
                         "duration": {"type": "number"},
                         "source_type": {"type": "string"},
                         "tags": {"type": "array", "items": {"type": "string"}},
-                        "confidence": {"type": "number", "description": "aligned hashes / query hashes inside the matched span (0-1)"},
+                        "confidence": {"type": "number", "description": "aligned hashes / query hashes inside the matched span (0 to 1)"},
                         "aligned_hashes": {"type": "integer"},
                         "peak_ratio": {"type": "number", "description": "spike height relative to the histogram background"},
                         "quality": {"type": "string", "enum": ["strong", "likely", "weak"]},

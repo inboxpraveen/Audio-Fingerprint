@@ -3,7 +3,7 @@
 #   docker build -t audiofp -f docker/Dockerfile .
 #   docker run -p 5000:5000 -v audiofp-data:/data -e AUDIOFP_API_KEY=secret audiofp
 #
-# ffmpeg is included so video containers and M4A/AAC/WMA decode out of the box.
+# ffmpeg is installed in the image, so video containers and M4A/AAC/WMA decode without any extra setup.
 
 FROM python:3.12-slim AS base
 

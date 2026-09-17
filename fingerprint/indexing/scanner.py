@@ -1,4 +1,4 @@
-"""Discover media files on disk and derive metadata from file names."""
+"""Find media files on disk and guess artist and title from file names."""
 
 from __future__ import annotations
 
@@ -43,10 +43,12 @@ def find_media_files(directory: str, recursive: bool = True, limit: int | None =
 
 
 def metadata_from_filename(path: str) -> dict[str, str]:
-    """Best-effort ``{"artist": ..., "title": ...}`` from ``Artist - Title.ext``.
+    """Guess ``{"artist": ..., "title": ...}`` from the file name.
 
-    Anything that does not follow the convention gets the file stem as its title
-    and an empty artist (the UI shows the filename in that case).
+    The stem is split at the first hyphen that has a space on both sides. What
+    comes before it is the artist, the rest is the title. A name without that
+    pattern, or with nothing on one side of it, keeps the whole stem as its
+    title and gets an empty artist (the UI then shows the filename).
     """
     stem = os.path.splitext(os.path.basename(path))[0].strip()
     if " - " in stem:

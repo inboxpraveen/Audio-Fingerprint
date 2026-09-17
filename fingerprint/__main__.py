@@ -1,4 +1,4 @@
-"""``python -m fingerprint`` -> the audiofp CLI."""
+"""Run the audiofp CLI as ``python -m fingerprint``."""
 
 import sys
 

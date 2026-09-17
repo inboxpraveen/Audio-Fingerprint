@@ -53,7 +53,7 @@ def test_hour_long_file_memory_stays_flat(tmp_path):
     growth_mb = (peak[0] - baseline) / 1e6
     print(f"\n30-min file: {fp.num_peaks} peaks, {fp.num_hashes} hashes in {elapsed:.1f}s; RSS growth {growth_mb:.0f} MB")
     assert fp.duration_sec == pytest.approx(seconds, abs=0.1)
-    assert growth_mb < 300, f"memory grew by {growth_mb:.0f} MB - streaming is broken"
+    assert growth_mb < 300, f"memory grew by {growth_mb:.0f} MB, streaming is broken"
 
     # the whole file can be stored and searched
     store = SQLiteStore(str(tmp_path / "scale.db"))
