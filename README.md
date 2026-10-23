@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/inboxpraveen/Audio-Fingerprint/actions/workflows/ci.yml/badge.svg)](https://github.com/inboxpraveen/Audio-Fingerprint/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 
 AudioFP is a self-hosted audio fingerprinting service. Give it a few seconds of audio and it tells you which track the clip came from and where in that track it sits. Index a jingle, a compliance disclaimer or a piece of hold music and it finds every place that audio turns up across your recordings, with timestamps.
 
@@ -183,4 +183,4 @@ Bug reports and pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIB
 
 ## Licence
 
-MIT, see [LICENSE](LICENSE).
+Apache 2.0. See [LICENSE](LICENSE).
