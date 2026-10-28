@@ -1,8 +1,4 @@
-<p align="center">
-  <img src="assets/logo.svg" alt="AudioFP logo" width="112" />
-</p>
-
-<h1 align="center">AudioFP</h1>
+# AudioFP
 
 [![CI](https://github.com/inboxpraveen/Audio-Fingerprint/actions/workflows/ci.yml/badge.svg)](https://github.com/inboxpraveen/Audio-Fingerprint/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
@@ -11,7 +7,7 @@
 AudioFP is a self-hosted audio fingerprinting service. Give it a few seconds of audio and it tells you which track the clip came from and where in that track it sits. Index a jingle, a compliance disclaimer or a piece of hold music and it finds every place that audio turns up across your recordings, with timestamps.
 
 <p align="center">
-  <img src="assets/Header.png" alt="AudioFP" width="800" />
+  <img src="assets/Header.png" alt="AudioFP: audio goes in, landmarks and hashes are indexed, every occurrence comes back with timestamps" width="800" />
 </p>
 
 It works on the sound itself. There is no speech recognition involved and nothing leaves your machine, so it is just as happy with music as with IVR prompts, hold music, ads or anything else that was recorded once and played many times. The engine is the landmark ("Shazam") algorithm on numpy and scipy, with fingerprints stored in SQLite or PostgreSQL. You get a REST API, a command line and a small web UI.
