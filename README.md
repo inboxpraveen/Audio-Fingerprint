@@ -1,4 +1,8 @@
-# AudioFP
+<p align="center">
+  <img src="assets/logo.svg" alt="AudioFP logo" width="112" />
+</p>
+
+<h1 align="center">AudioFP</h1>
 
 [![CI](https://github.com/inboxpraveen/Audio-Fingerprint/actions/workflows/ci.yml/badge.svg)](https://github.com/inboxpraveen/Audio-Fingerprint/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
