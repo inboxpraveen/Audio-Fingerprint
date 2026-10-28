@@ -51,6 +51,13 @@ audiofp stats
 
 Or open the web UI, drop a file in (or record from the microphone), pick a search mode and play any match from the exact spot it was found.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/Audio-Library-Dark.png">
+    <img src="assets/Audio-Library-Light.png" alt="The library page with uploads, folder indexing and tracks" width="800" />
+  </picture>
+</p>
+
 ## The two search modes
 
 | Mode | What you get | Typical use |
