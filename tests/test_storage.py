@@ -188,7 +188,7 @@ def test_sqlite_rejects_legacy_v1_database(tmp_path):
     conn.execute("CREATE TABLE fingerprints (hash_value INTEGER, song_id TEXT, time_offset INTEGER)")
     conn.commit()
     conn.close()
-    with pytest.raises(FingerprintCompatibilityError, match="1.x"):
+    with pytest.raises(FingerprintCompatibilityError, match=r"1\.x"):
         SQLiteStore(str(path))
 
 

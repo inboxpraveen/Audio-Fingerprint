@@ -198,7 +198,8 @@ def _iter_ffmpeg(
         for raw in iter(proc.stderr.readline, b""):
             line = raw.decode("utf-8", errors="replace").rstrip()
             if line:
-                stderr_tail.append(line)
+                # ffmpeg echoes the input path; don't leak where the file lives on the server
+                stderr_tail.append(line.replace(path, name))
 
     drain_thread = threading.Thread(target=_drain, name="ffmpeg-stderr", daemon=True)
     drain_thread.start()

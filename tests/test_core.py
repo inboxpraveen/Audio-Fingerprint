@@ -60,11 +60,11 @@ def test_chunked_peaks_identical_to_whole_signal(chunk):
 
 def test_extractor_edge_cases():
     ex = PeakExtractor(2048, 512, 20, 10.0)
-    t, f, n = ex.finish()  # nothing pushed
+    t, _f, n = ex.finish()  # nothing pushed
     assert t.size == 0 and n == 0
     ex = PeakExtractor(2048, 512, 20, 10.0)
     ex.push(np.zeros(100, dtype=np.float32))  # shorter than one frame
-    t, f, n = ex.finish()
+    t, _f, n = ex.finish()
     assert n == 100 and t.size == 0
     with pytest.raises(RuntimeError):
         ex.push(np.zeros(10, dtype=np.float32))

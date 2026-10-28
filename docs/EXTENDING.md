@@ -64,7 +64,7 @@ The library doesn't configure logging. Call
 ```python
 from fingerprint.storage import create_storage
 
-store = create_storage(settings)          # MemoryStore | SQLiteStore | PostgresStore
+store = create_storage(settings)  # MemoryStore | SQLiteStore | PostgresStore
 ...
 store.close()
 ```
@@ -81,14 +81,14 @@ carries on. Pass `check_compat=False` only from maintenance code such as
 ```python
 from fingerprint.indexing import Indexer
 
-indexer = Indexer(settings, store)        # builds its own Fingerprinter; pass one to share it
+indexer = Indexer(settings, store)  # builds its own Fingerprinter; pass one to share it
 outcome = indexer.index_file(
     "patterns/disclaimer.wav",
     title="Recorded-line disclaimer",
     tags=["compliance", "disclaimer"],
     metadata={"phrase": "this call may be recorded", "version": 3},
 )
-print(outcome.status)                     # "indexed" | "duplicate" | "failed"
+print(outcome.status)  # "indexed" | "duplicate" | "failed"
 ```
 
 `Indexer.index_file()` never raises for a problem with the file itself, such as an
@@ -119,8 +119,8 @@ Some details:
 from fingerprint.core import Fingerprinter
 
 fingerprinter = Fingerprinter(settings)
-fp = fingerprinter.fingerprint_file("calls/2026-09-01-0001.wav")   # streaming, flat memory
-fp = fingerprinter.fingerprint_array(samples)                      # numpy array, already at settings.sample_rate
+fp = fingerprinter.fingerprint_file("calls/2026-09-01-0001.wav")  # streaming, flat memory
+fp = fingerprinter.fingerprint_array(samples)  # numpy array, already at settings.sample_rate
 ```
 
 - `fingerprint_file(path, *, max_seconds=None, normalize=True, backend="auto", display_name=None)`
@@ -149,7 +149,7 @@ from fingerprint.core import Matcher, MatchOptions
 
 matcher = Matcher(settings)
 options = MatchOptions.from_settings(settings, mode="occurrences", top_k=50)
-matches = matcher.match(fp, store, options)     # list[TrackMatch], strongest first
+matches = matcher.match(fp, store, options)  # list[TrackMatch], strongest first
 ```
 
 These are the `MatchOptions` fields with their dataclass defaults. `from_settings()`
@@ -258,7 +258,7 @@ returns a `SearchResult`. `format_search()` turns that into the same JSON that
 from fingerprint.api.responses import format_search
 from fingerprint.api.runtime import Runtime
 
-rt = Runtime(settings)                    # creates storage, fingerprinter, matcher, indexer, job manager
+rt = Runtime(settings)  # creates storage, fingerprinter, matcher, indexer, job manager
 try:
     payload = format_search(rt.search_file("calls/call-0001.wav", mode="occurrences", top_k=50))
 finally:
@@ -615,7 +615,7 @@ method next to `start_directory_job()`:
 
 ```python
 def start_batch_search_job(self, directory: str, *, mode: str = "occurrences") -> Job:
-    self.check_directory_allowed(directory)                       # AUDIOFP_INDEX_ROOTS / production rules
+    self.check_directory_allowed(directory)  # AUDIOFP_INDEX_ROOTS / production rules
     paths = find_media_files(directory)
     if not paths:
         raise ValidationError("No supported audio or video files were found in that directory.", details={"directory": directory})
@@ -630,7 +630,7 @@ def start_batch_search_job(self, directory: str, *, mode: str = "occurrences") -
             job.update(current_item=os.path.basename(path))
             try:
                 result = self.search_file(path, filename=os.path.basename(path), mode=mode, top_k=self.settings.max_top_k)
-            except AudioFPError as exc:                            # undecodable file: record and continue
+            except AudioFPError as exc:  # undecodable file: record and continue
                 failed += 1
                 job.add_error(path, exc.message, exc.code, self.settings.job_max_errors)
             else:
@@ -713,15 +713,15 @@ doesn't depend on. The snippet is an illustration and doesn't come from this
 repository:
 
 ```python
-from faster_whisper import WhisperModel          # not installed by AudioFP
+from faster_whisper import WhisperModel  # not installed by AudioFP
 
 from fingerprint.core.decoder import load_audio
 
-audio = load_audio(record.filepath, 16000)                      # float32 mono, 16 kHz
+audio = load_audio(record.filepath, 16000)  # float32 mono, 16 kHz
 model = WhisperModel("small", device="cpu", compute_type="int8")
 segments, info = model.transcribe(audio, word_timestamps=True)
 for seg in segments:
-    store_segment(record.track_id, seg.start, seg.end, seg.text)   # your index, keyed by track_id
+    store_segment(record.track_id, seg.start, seg.end, seg.text)  # your index, keyed by track_id
 ```
 
 Suggested order of work: the index and its tests first, then the job type, then the
