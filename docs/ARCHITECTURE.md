@@ -6,6 +6,8 @@ The package you import is `fingerprint`. The distribution and the CLI are called
 
 ## Overview
 
+![Indexing and searching share one pipeline around the fingerprint store](../assets/Architecture.png)
+
 ### Components
 
 | Package | Responsibility | Main symbols |

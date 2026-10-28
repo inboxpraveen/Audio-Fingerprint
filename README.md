@@ -80,6 +80,10 @@ curl -F "audio=@call.wav" -F mode=occurrences http://localhost:5000/api/v1/searc
 
 ## How it works
 
+<p align="center">
+  <img src="assets/Architecture.png" alt="Indexing and searching share one pipeline: files are decoded, reduced to peaks and hashed, and the fingerprint store sits between the index and search flows" width="800" />
+</p>
+
 Audio is decoded in chunks to 11.025 kHz mono and turned into a spectrogram, which is then reduced to its most prominent peaks. Pairs of nearby peaks become 36-bit hashes, stored in an inverted index together with the frame they occur at. A query goes through the same steps. Every hash the query shares with a track votes for a time offset between the two, and a real match shows up as a sharp spike in that vote histogram, while coincidences only add noise. The height of the spike (distinct aligned hashes), how sharp it is compared with the background (`peak_ratio`) and how much of the matched region it explains (`confidence`) are all reported. The details, including the parameters and the maths, are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Documentation
